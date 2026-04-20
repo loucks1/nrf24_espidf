@@ -265,7 +265,7 @@ void NRF24Component::set_address_width(uint8_t a_width) {
     // The register value is width - 2
     // 3 bytes -> 1, 4 bytes -> 2, 5 bytes -> 3
     this->write_register(nRF24L01::SETUP_AW, (uint8_t)(a_width - 2));
-    this->addr_width = a_width; // Store this for use in open_reading_pipe
+    this->addr_width_ = a_width; // Store this for use in open_reading_pipe
 }
 
 void NRF24Component::open_reading_pipe(uint8_t number, uint64_t address) {
