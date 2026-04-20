@@ -27,26 +27,8 @@ namespace esphome
     class NRF24Component : public Component, public spi::SPIDevice<>
     {
     public:
-      void setup() override
-      {
-        // 1. Initialize the SPI bus (uses settings from YAML)
-        this->spi_setup();
 
-        // 2. Initialize your CE pin
-        if (this->ce_pin_ != nullptr)
-        {
-          this->ce_pin_->setup();
-          this->ce_pin_->digital_write(false);
-        }
-
-        // 3. Hardware check
-        if (!this->begin())
-        {
-          this->mark_failed();
-        }
-      }
-
-      void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
+    void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
 
       // ==================== Core setup ====================
       void setup() override;
