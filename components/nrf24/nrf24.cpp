@@ -13,11 +13,6 @@ namespace esphome
 
     static const char *const TAG = "nrf24";
 
-    NRF24Component::NRF24Component(GPIOPin *ce_pin, uint32_t spi_speed)
-        : ce_pin_(ce_pin), spi_speed_(spi_speed) {}
-
-    NRF24Component::NRF24Component(uint32_t spi_speed) : spi_speed_(spi_speed) {}
-
     void NRF24Component::setup_pins_()
     {
       if (this->ce_pin_)
@@ -52,7 +47,7 @@ namespace esphome
     {
       ESP_LOGCONFIG(TAG, "nRF24L01+ Radio:");
       LOG_PIN("  CE Pin:", this->ce_pin_);
-      this->spi_device_base_usage_log(TAG);
+      this->spi_chip_select_usage_log(TAG);
       this->printPrettyDetails();
     }
 
