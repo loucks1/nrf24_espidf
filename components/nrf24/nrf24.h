@@ -72,7 +72,7 @@ namespace esphome
       // ==================== Configuration ====================
       void setPALevel(rf24_pa_dbm_e level, bool lna_enable = true);
       rf24_pa_dbm_e getPALevel();
-      bool setDataRate(rf24_datarate_e speed);
+      bool set_rf_data_rate(rf24_datarate_e speed);
       rf24_datarate_e getDataRate();
       void setCRCLength(rf24_crclength_e length);
       rf24_crclength_e getCRCLength();

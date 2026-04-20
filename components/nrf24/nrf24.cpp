@@ -93,7 +93,7 @@ bool NRF24Component::begin() {
   this->write_register(nRF24L01::SETUP_RETR, 0x5F); // 1500us, 15 retries
 
   this->setPALevel(RF24_PA_MAX);
-  this->setDataRate(RF24_1MBPS);
+  this->set_rf_data_rate(RF24_1MBPS);
   this->setCRCLength(RF24_CRC_16);
   this->setChannel(76);
   this->setPayloadSize(32);
@@ -118,9 +118,9 @@ void NRF24Component::set_channel(uint8_t channel) {
 }
 
 void NRF24Component::set_data_rate_str(const std::string &data_rate) {
-  if (data_rate == "250KBPS") this->setDataRate(RF24_250KBPS);
-  else if (data_rate == "2MBPS") this->setDataRate(RF24_2MBPS);
-  else this->setDataRate(RF24_1MBPS);
+  if (data_rate == "250KBPS") this->set_rf_data_rate(RF24_250KBPS);
+  else if (data_rate == "2MBPS") this->set_rf_data_rate(RF24_2MBPS);
+  else this->set_rf_data_rate(RF24_1MBPS);
 }
 
 void NRF24Component::set_pa_level_str(const std::string &pa_level) {
@@ -282,7 +282,7 @@ rf24_pa_dbm_e NRF24Component::getPALevel() {
   return (rf24_pa_dbm_e)((this->read_register(nRF24L01::RF_SETUP) & 0x06) >> 1);
 }
 
-bool NRF24Component::setDataRate(rf24_datarate_e speed) {
+bool NRF24Component::set_rf_data_rate(rf24_datarate_e speed) {
   uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(0x28);
   if (speed == RF24_250KBPS) setup |= (1 << nRF24L01::RF_DR_LOW);
   else if (speed == RF24_2MBPS) setup |= (1 << nRF24L01::RF_DR_HIGH);
