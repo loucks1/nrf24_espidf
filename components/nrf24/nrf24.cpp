@@ -111,6 +111,27 @@ bool NRF24Component::is_chip_connected() {
   return (aw >= 1 && aw <= 3);
 }
 
+void NRF24Component::set_channel(uint8_t channel) {
+  this->write_register(nRF24L01::RF_CH, channel);
+}
+
+void NRF24Component::set_data_rate_str(const std::string &data_rate) {
+  if (data_rate == "250KBPS") this->setDataRate(RF24_250KBPS);
+  else if (data_rate == "2MBPS") this->setDataRate(RF24_2MBPS);
+  else this->setDataRate(RF24_1MBPS);
+}
+
+void NRF24Component::set_pa_level_str(const std::string &pa_level) {
+  if (pa_level == "MIN") this->setPALevel(RF24_PA_MIN);
+  else if (pa_level == "LOW") this->setPALevel(RF24_PA_LOW);
+  else if (pa_level == "HIGH") this->setPALevel(RF24_PA_HIGH);
+  else this->setPALevel(RF24_PA_MAX);
+}
+
+void NRF24Component::set_payload_size(uint8_t size) {
+  this->setPayloadSize(size);
+}
+
 void NRF24Component::ce(bool level) {
   if (this->ce_pin_) this->ce_pin_->digital_write(level);
 }

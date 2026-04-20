@@ -40,6 +40,11 @@ class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MS
 
   bool is_chip_connected();
 
+  void set_channel(uint8_t channel);
+  void set_data_rate_str(const std::string &data_rate);
+  void set_pa_level_str(const std::string &pa_level);
+  void set_payload_size(uint8_t size);
+
   // ==================== Operating mode ====================
   void start_listening();
   void stop_listening();
