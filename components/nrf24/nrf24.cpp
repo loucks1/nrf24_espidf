@@ -30,9 +30,13 @@ namespace esphome
     void NRF24Component::setup()
     {
       this->setup_pins_();
-      ESP_LOGI(TAG, "Setting up NRF24...");
+
+      ESP_LOGI(TAG, "Setting up SPI...");
 
       this->spi_setup();
+      delay(100);
+
+      ESP_LOGI(TAG, "Setting up NRF24...");
 
       // Now you can talk to the hardware
       if (!this->begin())
@@ -161,7 +165,7 @@ namespace esphome
         this->pa_level_ = RF24_PA_LOW;
       else if (pa_level == "HIGH")
         this->pa_level_ = RF24_PA_HIGH;
-      else  
+      else
         this->pa_level_ = RF24_PA_MAX;
     }
 
