@@ -24,7 +24,7 @@ namespace esphome
     typedef nRF24L01::rf24_irq_flags_e rf24_irq_flags_e;
 
     /** Main nRF24L01+ component with full original RF24 API compatibility */
-    class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_10MHZ>
+    class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ>
     {
     public:
       explicit NRF24Component(GPIOPin *ce_pin, uint32_t spi_speed = 10000000);
