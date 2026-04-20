@@ -30,6 +30,134 @@
 
 namespace nRF24L01 {
 
+/**
+ * @defgroup PALevel Power Amplifier level
+ * Power Amplifier level. The units dBm (decibel-milliwatts or dB<sub>mW</sub>)
+ * represents a logarithmic signal loss.
+ * @see
+ * - RF24::setPALevel()
+ * - RF24::getPALevel()
+ * @{
+ */
+typedef enum
+{
+    /**
+     * (0) represents:
+     * nRF24L01 | Si24R1 with<br>lnaEnabled = 1 | Si24R1 with<br>lnaEnabled = 0
+     * :-------:|:-----------------------------:|:----------------------------:
+     *  -18 dBm | -6 dBm | -12 dBm
+     */
+    RF24_PA_MIN = 0,
+    /**
+     * (1) represents:
+     * nRF24L01 | Si24R1 with<br>lnaEnabled = 1 | Si24R1 with<br>lnaEnabled = 0
+     * :-------:|:-----------------------------:|:----------------------------:
+     *  -12 dBm | 0 dBm | -4 dBm
+     */
+    RF24_PA_LOW,
+    /**
+     * (2) represents:
+     * nRF24L01 | Si24R1 with<br>lnaEnabled = 1 | Si24R1 with<br>lnaEnabled = 0
+     * :-------:|:-----------------------------:|:----------------------------:
+     *  -6 dBm | 3 dBm | 1 dBm
+     */
+    RF24_PA_HIGH,
+    /**
+     * (3) represents:
+     * nRF24L01 | Si24R1 with<br>lnaEnabled = 1 | Si24R1 with<br>lnaEnabled = 0
+     * :-------:|:-----------------------------:|:----------------------------:
+     *  0 dBm | 7 dBm | 4 dBm
+     */
+    RF24_PA_MAX,
+    /**
+     * (4) This should not be used and remains for backward compatibility.
+     */
+    RF24_PA_ERROR
+} rf24_pa_dbm_e;
+
+/**
+ * @}
+ * @defgroup Datarate datarate
+ * How fast data moves through the air. Units are in bits per second (bps).
+ * @see
+ * - RF24::setDataRate()
+ * - RF24::getDataRate()
+ * @{
+ */
+typedef enum
+{
+    /** (0) represents 1 Mbps */
+    RF24_1MBPS = 0,
+    /** (1) represents 2 Mbps */
+    RF24_2MBPS,
+    /** (2) represents 250 kbps */
+    RF24_250KBPS
+} rf24_datarate_e;
+
+/**
+ * @}
+ * @defgroup CRCLength CRC length
+ * The length of a CRC checksum that is used (if any). Cyclical Redundancy
+ * Checking (CRC) is commonly used to ensure data integrity.
+ * @see
+ * - RF24::setCRCLength()
+ * - RF24::getCRCLength()
+ * - RF24::disableCRC()
+ * @{
+ */
+typedef enum
+{
+    /** (0) represents no CRC checksum is used */
+    RF24_CRC_DISABLED = 0,
+    /** (1) represents CRC 8 bit checksum is used */
+    RF24_CRC_8,
+    /** (2) represents CRC 16 bit checksum is used */
+    RF24_CRC_16
+} rf24_crclength_e;
+
+/**
+ * @}
+ * @defgroup fifoState FIFO state
+ * The state of a single FIFO (RX or TX).
+ * Remember, each FIFO has a maximum occupancy of 3 payloads.
+ * @see RF24::isFifo()
+ * @{
+ */
+typedef enum
+{
+    /// @brief The FIFO is not full nor empty, but it is occupied with 1 or 2 payloads.
+    RF24_FIFO_OCCUPIED,
+    /// @brief The FIFO is empty.
+    RF24_FIFO_EMPTY,
+    /// @brief The FIFO is full.
+    RF24_FIFO_FULL,
+    /// @brief Represents corruption of data over SPI (when observed).
+    RF24_FIFO_INVALID,
+} rf24_fifo_state_e;
+
+/**
+ * @}
+ * @defgroup StatusFlags Status flags
+ * @{
+ */
+
+/**
+ * @brief An enumeration of constants used to configure @ref StatusFlags
+ */
+typedef enum
+{
+    /// An alias of `0` to describe no IRQ events enabled.
+    RF24_IRQ_NONE = 0,
+    /// Represents an event where TX Data Failed to send.
+    RF24_TX_DF = 1 << nRF24L01::MASK_MAX_RT,
+    /// Represents an event where TX Data Sent successfully.
+    RF24_TX_DS = 1 << nRF24L01::TX_DS,
+    /// Represents an event where RX Data is Ready to `RF24::read()`.
+    RF24_RX_DR = 1 << nRF24L01::RX_DR,
+    /// Equivalent to `RF24_RX_DR | RF24_TX_DS | RF24_TX_DF`.
+    RF24_IRQ_ALL = (1 << nRF24L01::MASK_MAX_RT) | (1 << nRF24L01::TX_DS) | (1 << nRF24L01::RX_DR),
+} rf24_irq_flags_e;
+
 /* Memory Map */
 constexpr uint8_t CONFIG = 0x00;
 constexpr uint8_t EN_AA = 0x01;
