@@ -66,6 +66,7 @@ namespace esphome
       void open_writing_pipe(uint64_t address);
       void open_reading_pipe(uint8_t number, const uint8_t *address);
       void open_reading_pipe(uint8_t number, uint64_t address);
+      void set_address_width(uint8_t a_width)
 
       void close_reading_pipe(uint8_t pipe);
 

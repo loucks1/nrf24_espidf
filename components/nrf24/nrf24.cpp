@@ -256,6 +256,18 @@ void NRF24Component::open_reading_pipe(uint8_t number, const uint8_t *address) {
       this->read_register(nRF24L01::EN_RXADDR) | (1 << number));
 }
 
+void NRF24Component::set_address_width(uint8_t a_width) {
+    // nRF24L01 supports 3, 4, or 5 bytes. 
+    // SETUP_AW bits: 01=3bytes, 10=4bytes, 11=5bytes
+    if (a_width < 3) a_width = 3;
+    if (a_width > 5) a_width = 5;
+
+    // The register value is width - 2
+    // 3 bytes -> 1, 4 bytes -> 2, 5 bytes -> 3
+    this->write_register(nRF24L01::SETUP_AW, (uint8_t)(a_width - 2));
+    this->addr_width = a_width; // Store this for use in open_reading_pipe
+}
+
 void NRF24Component::open_reading_pipe(uint8_t number, uint64_t address) {
   uint8_t addr[5] = {0};
   for (int i = 4; i >= 0; --i) {
