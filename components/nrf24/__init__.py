@@ -21,7 +21,7 @@ CONFIG_SCHEMA = cv.All(
                 cv.GenerateID(): cv.declare_id(NRF24Component),
                 cv.Required(CONF_CE_PIN): pins.gpio_output_pin_schema,
                 cv.Optional("channel", default=76): cv.int_range(0, 125),
-                cv.Optional("data_rate", default="1MBPS"): cv.one_of("250KBPS", "1MBPS", "2MBPS", lower=True),
+                cv.Optional("data_rate", default="1MBPS"): cv.one_of("250KBPS", "1MBPS", "2MBPS", upper=True),
                 cv.Optional("pa_level", default="MAX"): cv.one_of("MIN", "LOW", "HIGH", "MAX", upper=True),
                 cv.Optional("payload_size", default=32): cv.int_range(1, 32),
             }
