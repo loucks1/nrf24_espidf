@@ -24,11 +24,19 @@ namespace esphome
     typedef nRF24L01::rf24_irq_flags_e rf24_irq_flags_e;
 
     /** Main nRF24L01+ component with full original RF24 API compatibility */
-    class NRF24Component : public Component, public spi::SPIDevice<>
+    class NRF24Component : public Component,
+                           public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST,
+                                                 spi::CLOCK_POLARITY_LOW,
+                                                 spi::CLOCK_PHASE_LEADING,
+                                                 spi::DATA_RATE_1MHZ>
     {
-    public:
 
-    void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
+    public:
+      void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
+
+      void set_spi_parent(spi::SPIBus *parent) { this->parent_ = parent; }
+      void set_cs_pin(InternalGPIOPin *cs_pin) { this->cs_pin_ = cs_pin; }
+      void set_data_rate(float data_rate) { /* template overrides this, but method must exist */ }
 
       // ==================== Core setup ====================
       void setup() override;

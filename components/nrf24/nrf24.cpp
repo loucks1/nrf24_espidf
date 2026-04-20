@@ -8,7 +8,6 @@ namespace esphome
 {
   namespace nrf24
   {
-
     using namespace ::nRF24L01; // This "unpacks" the radio constants into this file
 
     static const char *const TAG = "nrf24";
