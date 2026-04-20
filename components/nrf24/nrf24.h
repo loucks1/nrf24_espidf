@@ -153,6 +153,10 @@ namespace esphome
       bool _is_p_variant{false};
       bool _is_p0_rx{false};
       uint8_t config_reg_{0};
+      uint8_t channel_{76};
+      nRF24L01::rf24_pa_dbm_e pa_level_{nRF24L01::RF24_PA_MAX};
+      nRF24L01::rf24_datarate_e data_rate_{nRF24L01::RF24_1MBPS};
+      nRF24L01::rf24_crclength_e crc_length_{nRF24L01::RF24_CRC_16};
 
       void setup_pins_();
     };

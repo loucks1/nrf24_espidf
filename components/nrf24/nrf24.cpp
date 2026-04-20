@@ -116,11 +116,11 @@ namespace esphome
       this->write_register(nRF24L01::STATUS, 0x70);     // clear interrupts
       this->write_register(nRF24L01::SETUP_RETR, 0x5F); // 1500us, 15 retries
 
-      this->setPALevel(RF24_PA_MAX);
-      this->set_rf_data_rate(RF24_1MBPS);
+      this->setPALevel(this->pa_level_);
+      this->set_rf_data_rate(this->data_rate_);
       this->setCRCLength(RF24_CRC_16);
-      this->setChannel(76);
-      this->setPayloadSize(32);
+      this->setChannel(this->channel_);
+      this->setPayloadSize(this->payload_size_);
 
       this->powerUp();
       esp_rom_delay_us(5000);
@@ -140,34 +140,34 @@ namespace esphome
 
     void NRF24Component::set_channel(uint8_t channel)
     {
-      this->write_register(nRF24L01::RF_CH, channel);
+      this->channel_ = channel;
     }
 
     void NRF24Component::set_data_rate_str(const std::string &data_rate)
     {
       if (data_rate == "250KBPS")
-        this->set_rf_data_rate(RF24_250KBPS);
+        this->data_rate_ = RF24_250KBPS;
       else if (data_rate == "2MBPS")
-        this->set_rf_data_rate(RF24_2MBPS);
+        this->data_rate_ = RF24_2MBPS;
       else
-        this->set_rf_data_rate(RF24_1MBPS);
+        this->data_rate_ = RF24_1MBPS;
     }
 
     void NRF24Component::set_pa_level_str(const std::string &pa_level)
     {
       if (pa_level == "MIN")
-        this->setPALevel(RF24_PA_MIN);
+        this->pa_level_ = RF24_PA_MIN;
       else if (pa_level == "LOW")
-        this->setPALevel(RF24_PA_LOW);
+        this->pa_level_ = RF24_PA_LOW;
       else if (pa_level == "HIGH")
-        this->setPALevel(RF24_PA_HIGH);
-      else
-        this->setPALevel(RF24_PA_MAX);
+        this->pa_level_ = RF24_PA_HIGH;
+      else  
+        this->pa_level_ = RF24_PA_MAX;
     }
 
     void NRF24Component::set_payload_size(uint8_t size)
     {
-      this->setPayloadSize(size);
+      this->payload_size_ = std::min(size, (uint8_t)32);
     }
 
     void NRF24Component::ce(bool level)
