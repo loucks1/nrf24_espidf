@@ -47,7 +47,7 @@ namespace esphome
     {
       ESP_LOGCONFIG(TAG, "nRF24L01+ Radio:");
       LOG_PIN("  CE Pin:", this->ce_pin_);
-      LOG_SPI_DEVICE(this);
+      //LOG_SPI_DEVICE(this);
       this->printPrettyDetails();
     }
 
