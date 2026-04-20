@@ -1,34 +1,33 @@
 import esphome.codegen as cg
 import esphome.config_validation as cv
+from esphome import pins
 from esphome.components import spi
-from esphome.const import CONF_ID, CONF_CE_PIN, CONF_IRQ_PIN, CONF_CHANNEL
+from esphome.const import CONF_ID, CONF_CE_PIN
+
+DEPENDENCIES = ["spi"]
+AUTO_LOAD = ["spi"]
 
 nrf24_ns = cg.esphome_ns.namespace("nrf24")
-RF24 = nrf24_ns.class_("RF24", cg.Component, spi.SPISingleDevice)
+NRF24Component = nrf24_ns.class_("NRF24Component", cg.Component, spi.SPIDevice)
 
-CONFIG_SCHEMA = cv.All(
-    cv.Schema(
+CONFIG_SCHEMA = (
+    spi.spi_device_schema(
+        default_data_rate="10MHz",  # nRF24L01+ max recommended
+        default_mode=spi.SPI_MODE_0,
+        default_bit_order=spi.BIT_ORDER_MSB_FIRST,
+    )
+    .extend(
         {
-            cv.GenerateID(): cv.declare_id(RF24),
-            cv.Required(CONF_CE_PIN): cv.use_id(cg.InternalGPIOPin),
-            cv.Optional(CONF_IRQ_PIN): cv.use_id(cg.InternalGPIOPin),
-            cv.Optional(CONF_CHANNEL, default=76): cv.int_range(0, 125),
+            cv.GenerateID(): cv.declare_id(NRF24Component),
+            cv.Required(CONF_CE_PIN): pins.gpio_output_pin_schema,
         }
-    ).extend(spi.spi_device_schema(cs_pin_required=True)),
-    cv.only_on_esp32,
+    )
 )
 
-async def to_code(config):
+def to_code(config):
     var = cg.new_Pvariable(config[CONF_ID])
-    await cg.register_component(var, config)
-    await spi.register_spi_device(var, config)
+    yield cg.register_component(var, config)
+    yield spi.register_spi_device(var, config)
 
-    ce_pin = await cg.get_variable(config[CONF_CE_PIN])
+    ce_pin = yield pins.gpio_pin_expression(config[CONF_CE_PIN])
     cg.add(var.set_ce_pin(ce_pin))
-
-    if CONF_IRQ_PIN in config:
-        irq_pin = await cg.get_variable(config[CONF_IRQ_PIN])
-        cg.add(var.set_irq_pin(irq_pin))
-
-    cg.add(var.set_channel(config[CONF_CHANNEL]))
-    return var
