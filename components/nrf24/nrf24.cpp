@@ -29,7 +29,7 @@ namespace esphome
 
     void NRF24Component::setup()
     {
-      ESP_LOGI("nrf24", "BUILD VERSION: 2026-04-20-V2");
+      ESP_LOGI("nrf24", "BUILD VERSION: 2026-04-20-V3");
       this->setup_pins_();
 
       ESP_LOGI(TAG, "Setting up SPI...");
