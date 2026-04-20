@@ -35,7 +35,7 @@ async def to_code(config):
         await cg.register_component(var, conf)
         await spi.register_spi_device(var, conf)
 
-        ce_pin = await pins.gpio_pin_expression(conf[CONF_CE_PIN])
+        ce_pin = await cg.gpio_pin_expression(conf[CONF_CE_PIN])
         cg.add(var.set_ce_pin(ce_pin))
 
         cg.add(var.set_channel(conf["channel"]))
