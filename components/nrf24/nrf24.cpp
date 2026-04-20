@@ -29,7 +29,7 @@ namespace esphome
 
     void NRF24Component::setup()
     {
-      ESP_LOGI("nrf24", "BUILD VERSION: 2026-04-20-V3");
+      ESP_LOGI("nrf24", "BUILD VERSION: 2026-04-20-V4");
       this->setup_pins_();
 
       ESP_LOGI(TAG, "Setting up SPI...");
@@ -52,6 +52,7 @@ namespace esphome
     {
       ESP_LOGCONFIG(TAG, "nRF24L01+ Radio:");
       LOG_PIN("  CE Pin:", this->ce_pin_);
+      this->dump_device_config(TAG);
       ESP_LOGCONFIG(TAG, "  SPI Speed: %u Hz", this->spi_speed_);
       this->printPrettyDetails();
     }
