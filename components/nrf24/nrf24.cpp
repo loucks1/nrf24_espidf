@@ -7,6 +7,8 @@
 namespace esphome {
 namespace nrf24 {
 
+using namespace ::nRF24L01; // This "unpacks" the radio constants into this file
+  
 static const char *const TAG = "nrf24";
 
 NRF24Component::NRF24Component(GPIOPin *ce_pin, uint32_t spi_speed)
@@ -326,7 +328,7 @@ uint8_t NRF24Component::getChannel() {
 }
 
 void NRF24Component::setPayloadSize(uint8_t size) {
-  this->payload_size_ = rf24_min(size, 32);
+  this->payload_size_ = std::min((uint8_t)size, (uint8_t)32);
 }
 
 uint8_t NRF24Component::getPayloadSize() {
@@ -453,7 +455,7 @@ bool NRF24Component::testRPD() {
 }
 
 bool NRF24Component::txStandBy() {
-  while (this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::TX_FIFO_FULL) {
+  while (this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::FIFO_FULL) {
     if (this->read_register(nRF24L01::STATUS) & nRF24L01::MAX_RT) {
       this->write_register(nRF24L01::STATUS, nRF24L01::MAX_RT);
       this->ce(false);

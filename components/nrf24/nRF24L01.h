@@ -30,6 +30,10 @@
 
 namespace nRF24L01 {
 
+constexpr uint8_t MASK_RX_DR = 6;
+constexpr uint8_t MASK_TX_DS = 5;
+constexpr uint8_t MASK_MAX_RT = 4;
+
 /**
  * @defgroup PALevel Power Amplifier level
  * Power Amplifier level. The units dBm (decibel-milliwatts or dB<sub>mW</sub>)
@@ -187,9 +191,6 @@ constexpr uint8_t DYNPD = 0x1C;
 constexpr uint8_t FEATURE = 0x1D;
 
 /* Bit Mnemonics */
-constexpr uint8_t MASK_RX_DR = 6;
-constexpr uint8_t MASK_TX_DS = 5;
-constexpr uint8_t MASK_MAX_RT = 4;
 constexpr uint8_t EN_CRC = 3;
 constexpr uint8_t CRCO = 2;
 constexpr uint8_t PWR_UP = 1;
