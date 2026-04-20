@@ -72,28 +72,34 @@ namespace esphome
     {
       uint8_t result;
       begin_transaction_();
-      this->transfer_byte(reg);
+      // 1. Send Read Command (0x00 | reg).
+      // The byte returned DURING this call is the STATUS register.
+      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & 0x1F));
+
+      // 2. Send dummy byte to clock out the register value.
       result = this->transfer_byte(0xFF);
       end_transaction_();
-      this->status_ = result; // first byte after command is status
+
       return result;
     }
 
     void NRF24Component::read_register(uint8_t reg, uint8_t *buf, uint8_t len)
     {
       begin_transaction_();
-      this->transfer_byte(reg);
-      for (uint8_t i = 0; i < len; ++i)
-      {
-        buf[i] = this->transfer_byte(0xFF);
-      }
+      // Send Read Command. Store status.
+      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & 0x1F));
+
+      // ESPHome's read_array is more efficient than a for-loop for multiple bytes
+      this->read_array(buf, len);
       end_transaction_();
     }
 
     void NRF24Component::write_register(uint8_t reg, uint8_t value)
     {
       begin_transaction_();
-      this->transfer_byte(nRF24L01::W_REGISTER | reg);
+      // Send Write Command (0x20 | reg). Store status.
+      this->status_ = this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
+
       this->transfer_byte(value);
       end_transaction_();
     }
@@ -101,11 +107,13 @@ namespace esphome
     void NRF24Component::write_register(uint8_t reg, const uint8_t *buf, uint8_t len)
     {
       begin_transaction_();
-      this->transfer_byte(nRF24L01::W_REGISTER | reg);
+      // Send Write Command. Store status.
+      this->status_ = this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
+
+      // Use ESPHome's optimized array write
       this->write_array(buf, len);
       end_transaction_();
     }
-
     // ====================== Core ======================
 
     bool NRF24Component::begin()
