@@ -21,7 +21,7 @@ namespace esphome
     typedef nRF24L01::rf24_datarate_e rf24_datarate_e;
     typedef nRF24L01::rf24_crclength_e rf24_crclength_e;
     typedef nRF24L01::rf24_fifo_state_e rf24_fifo_state_e;
-    typedef ::rf24_irq_flags_e rf24_irq_flags_e;
+    typedef nRF24L01::rf24_irq_flags_e rf24_irq_flags_e;
 
     /** Main nRF24L01+ component with full original RF24 API compatibility */
     class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_10MHZ>

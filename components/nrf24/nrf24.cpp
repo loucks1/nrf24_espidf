@@ -194,7 +194,7 @@ bool NRF24Component::write(const void *buf, uint8_t len, bool multicast) {
 
 void NRF24Component::start_write(const void *buf, uint8_t len, bool multicast) {
   this->write_register(nRF24L01::STATUS, nRF24L01::TX_DS | nRF24L01::MAX_RT);
-  this->write_payload(buf, len, multicast ? nRF24L01::W_TX_PAYLOAD_NOACK : nRF24L01::W_TX_PAYLOAD);
+  this->write_payload(buf, len, multicast ? nRF24L01::W_TX_PAYLOAD_NO_ACK : nRF24L01::W_TX_PAYLOAD);
   this->ce(true);
   esp_rom_delay_us(10);
 }
@@ -423,7 +423,7 @@ void NRF24Component::maskIRQ(bool tx_ok, bool tx_fail, bool rx_ready) {
 }
 
 rf24_fifo_state_e NRF24Component::isFifo(bool tx) {
-  uint8_t status = this->read_register(tx ? nRF24L01::FIFO_STATUS_TX : nRF24L01::FIFO_STATUS_RX);
+  uint8_t status = this->read_register(nRF24L01::FIFO_STATUS);
   // simplified
   return (status & 0x01) ? RF24_FIFO_EMPTY : RF24_FIFO_FULL;
 }

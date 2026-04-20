@@ -33,6 +33,8 @@ namespace nRF24L01 {
 constexpr uint8_t MASK_RX_DR = 6;
 constexpr uint8_t MASK_TX_DS = 5;
 constexpr uint8_t MASK_MAX_RT = 4;
+constexpr uint8_t RX_DR = 6;
+constexpr uint8_t TX_DS = 5;
 
 /**
  * @defgroup PALevel Power Amplifier level
@@ -214,8 +216,6 @@ constexpr uint8_t PLL_LOCK = 4;
 constexpr uint8_t CONT_WAVE = 7;
 constexpr uint8_t RF_DR = 3;
 constexpr uint8_t RF_PWR = 6;
-constexpr uint8_t RX_DR = 6;
-constexpr uint8_t TX_DS = 5;
 constexpr uint8_t MAX_RT = 4;
 constexpr uint8_t RX_P_NO = 1;
 constexpr uint8_t TX_FULL = 0;
