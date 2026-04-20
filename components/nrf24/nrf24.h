@@ -27,8 +27,7 @@ namespace esphome
     class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ>
     {
     public:
-      explicit NRF24Component(GPIOPin *ce_pin, uint32_t spi_speed = 10000000);
-      explicit NRF24Component(uint32_t spi_speed = 10000000);
+      NRF24Component() = default;
 
       void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
 

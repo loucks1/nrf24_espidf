@@ -52,8 +52,7 @@ namespace esphome
     {
       ESP_LOGCONFIG(TAG, "nRF24L01+ Radio:");
       LOG_PIN("  CE Pin:", this->ce_pin_);
-      this->dump_device_config(TAG);
-      ESP_LOGCONFIG(TAG, "  SPI Speed: %u Hz", this->spi_speed_);
+      this->spi_device_base_usage_log(TAG);
       this->printPrettyDetails();
     }
 
