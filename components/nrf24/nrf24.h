@@ -24,10 +24,27 @@ namespace esphome
     typedef nRF24L01::rf24_irq_flags_e rf24_irq_flags_e;
 
     /** Main nRF24L01+ component with full original RF24 API compatibility */
-    class NRF24Component : public Component, public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST, spi::CLOCK_POLARITY_LOW, spi::CLOCK_PHASE_LEADING, spi::DATA_RATE_1MHZ>
+    class NRF24Component : public Component, public spi::SPIDevice<>
     {
     public:
-      NRF24Component() = default;
+      void setup() override
+      {
+        // 1. Initialize the SPI bus (uses settings from YAML)
+        this->spi_setup();
+
+        // 2. Initialize your CE pin
+        if (this->ce_pin_ != nullptr)
+        {
+          this->ce_pin_->setup();
+          this->ce_pin_->digital_write(false);
+        }
+
+        // 3. Hardware check
+        if (!this->begin())
+        {
+          this->mark_failed();
+        }
+      }
 
       void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
 
