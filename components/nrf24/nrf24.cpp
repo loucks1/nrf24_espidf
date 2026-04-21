@@ -40,6 +40,29 @@ namespace esphome
         this->mark_failed();
         return;
       }
+
+      this->stop_listening();                            // Equivalent to CE Low
+      this->setAutoAck(false);                         // Disables EN_AA for all pipes
+      this->disableCRC(); // Disables CRC in CONFIG
+      this->set_channel(53);                             // Set frequency to 2453MHz
+
+      // 3. Clean slate for
+      for (uint8_t i = 0; i < 6; i++)
+      {
+        this->close_reading_pipe(i);
+      }
+
+      // 4. Match enterRemoteSearchMode()
+      this->set_address_width(5);
+      // Note: 0x5555555555LL is the search address
+      this->open_reading_pipe(1, 0x5555555555LL);
+
+      this->set_payload_size(32); // MAX_PAYLOAD_SIZE
+
+      // 5. Fire it up
+      this->start_listening(); // Drives CE High
+
+      ESP_LOGI("nrf24", "Radio started & Search Mode Active (Ch 53)");
     }
 
     void NRF24Component::dump_config()
@@ -113,29 +136,34 @@ namespace esphome
     bool NRF24Component::begin()
     {
       this->setup_pins_();
+      this->ce(false); // Ensure we are in Standby-I
 
-      this->write_register(nRF24L01::CONFIG, 0x0C); // default
+      // 1. Power up with CRC DISABLED (matching Arduino start)
+      // 0x02 is PWR_UP. Bit 3 (EN_CRC) is 0.
+      this->write_register(nRF24L01::CONFIG, 0x02);
       esp_rom_delay_us(5000);
 
       this->flush_tx();
       this->flush_rx();
 
-      this->write_register(nRF24L01::STATUS, 0x70);     // clear interrupts
-      this->write_register(nRF24L01::SETUP_RETR, 0x5F); // 1500us, 15 retries
+      // 2. Clear interrupts
+      this->write_register(nRF24L01::STATUS, 0x70);
 
+      // 3. Apply your specific YAML/Arduino settings
       this->setPALevel(this->pa_level_);
       this->set_rf_data_rate(this->data_rate_);
-      this->setCRCLength(RF24_CRC_16);
-      this->setChannel(this->channel_);
-      this->setPayloadSize(this->payload_size_);
 
-      this->powerUp();
-      esp_rom_delay_us(5000);
+      // CRITICAL: Set to DISABLED to match your Arduino success
+      this->disableCRC();
+      this->set_channel(this->channel_);
+      this->set_payload_size(this->payload_size_);
 
-      this->toggle_features();
+      // 4. Disable Features that interfere with raw captures
       this->write_register(nRF24L01::FEATURE, 0);
       this->write_register(nRF24L01::DYNPD, 0);
+      this->write_register(nRF24L01::EN_AA, 0); // Force Auto-Ack OFF
 
+      esp_rom_delay_us(5000);
       return this->is_chip_connected();
     }
 
@@ -181,7 +209,8 @@ namespace esphome
     {
       if (this->ce_pin_)
         this->ce_pin_->digital_write(level);
-      if (level) esp_rom_delay_us(130); 
+      if (level)
+        esp_rom_delay_us(130);
     }
 
     // ====================== Mode ======================

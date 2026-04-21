@@ -76,7 +76,6 @@ button:
             radio->disableCRC();  // Disable CRC for search mode
 
             radio->start_listening();
-            delayMicroseconds(200);  // Allow radio to settle
             ESP_LOGI("nrf24", "=== ENTERED REMOTE SEARCH MODE ===");
             id(search_mode) = true;
         - script.execute: nrf24_receiver_script            
