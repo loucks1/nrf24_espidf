@@ -41,44 +41,7 @@ namespace esphome
         return;
       }
 
-      // 1. Power Down
-      this->write_register(nRF24L01::CONFIG, 0x00);
-      esp_rom_delay_us(5000);
-
-      // 2. Set 1Mbps / Max Power
-      this->write_register(nRF24L01::RF_SETUP, 0x06);
-
-      // 3. Clear all Status flags
-      this->write_register(nRF24L01::STATUS, 0x70);
-
-      // 4. Flush the pipes
-      this->begin_transaction_();
-      this->transfer_byte(nRF24L01::FLUSH_RX);
-      this->end_transaction_();
-
-      // 5. Power Up + RX Mode + 2-byte CRC
-      // Using 0x0F covers all bases for a standard 1Mbps remote
-      this->write_register(nRF24L01::CONFIG, 0x0F);
-      this->ce(true);
-
-      this->stop_listening();  // Equivalent to CE Low
-      this->setAutoAck(false); // Disables EN_AA for all pipes
-      this->disableCRC();      // Disables CRC in CONFIG
-      this->set_channel(53);   // Set frequency to 2453MHz
-
-      // 3. Clean slate for
-
-      // 4. Match enterRemoteSearchMode()
-      this->set_address_width(5);
-      // Note: 0x5555555555LL is the search address
-      this->open_reading_pipe(1, 0x5555555555LL);
-
-      this->set_payload_size(32); // MAX_PAYLOAD_SIZE
-
-      // 5. Fire it up
-      this->start_listening(); // Drives CE High
-
-      ESP_LOGI("nrf24", "Radio started & Search Mode Active (Ch 53)");
+      setChannel(this->channel_);
     }
 
     void NRF24Component::dump_config()
@@ -450,11 +413,12 @@ namespace esphome
         this->write_register(reg, address, 1);
       }
 
+      this->write_register(nRF24L01::RX_PW_P0 + number, this->payload_size_); // Set payload size for this pipe
       // 3. Enable the Pipe (Explicitly)
       // Instead of a Read-Modify-Write, consider if you want to FORCE
       // only this pipe open for sniffing stability.
       uint8_t en_reg = this->read_register(nRF24L01::EN_RXADDR);
-      this->write_register(nRF24L01::EN_RXADDR, en_reg | (1 << number));
+      this->write_register(nRF24L01::EN_RXADDR, en_reg | BIT(number));
     }
 
     void NRF24Component::set_address_width(uint8_t a_width)
@@ -505,40 +469,42 @@ namespace esphome
 
     bool NRF24Component::set_rf_data_rate(rf24_datarate_e speed)
     {
+      // 0x28 is correct: it masks out Bit 5 (DR_LOW) and Bit 3 (DR_HIGH)
+      uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(BIT(nRF24L01::RF_DR_LOW) | BIT(nRF24L01::RF_DR_HIGH));
 
-      this->write_register(nRF24L01::RF_SETUP, 0x06);
-      return true; // force to 1Mbps
-                   //    bool result = false;
-                   //    uint8_t setup = read_register(nRF24L01::RF_SETUP);
+      if (speed == RF24_250KBPS)
+      {
+        setup |= BIT(nRF24L01::RF_DR_LOW);
+      }
+      else if (speed == RF24_2MBPS)
+      {
+        setup |= BIT(nRF24L01::RF_DR_HIGH);
+      }
+      // If 1Mbps, both stay 0, which is correct.
 
-      //    // HIGH and LOW '00' is 1Mbs - our default
-      //    setup = static_cast<uint8_t>(setup & ~(BIT(nRF24L01::RF_DR_LOW) | BIT(nRF24L01::RF_DR_HIGH)));
-      //    setup |= _data_rate_reg_value(speed);
+      this->write_register(nRF24L01::RF_SETUP, setup);
 
-      //    write_register(nRF24L01::RF_SETUP, setup);
+      // Arduino-style Verification:
+      // Read back to ensure the hardware actually accepted the value
+      uint8_t verify = this->read_register(nRF24L01::RF_SETUP);
+      if (verify != setup)
+      {
+        return false;
+      }
 
-      //    // Verify our result
-      //    if (read_register(nRF24L01::RF_SETUP) == setup)
-      //    {
-      //      result = true;
-      //    }
-      //    return result;
+      // Crucial for ESP32/ESP-IDF: Give the radio a moment to settle
+      // its clock timing before the next SPI command hits.
+      esp_rom_delay_us(200);
 
-      //    uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(0x28);
-      //    if (speed == RF24_250KBPS)
-      //      setup |= BIT(nRF24L01::RF_DR_LOW);
-      //    else if (speed == RF24_2MBPS)
-      //      setup |= BIT(nRF24L01::RF_DR_HIGH);
-      //    this->write_register(nRF24L01::RF_SETUP, setup);
-      //    return true;
+      return true;
     }
 
     rf24_datarate_e NRF24Component::getDataRate()
     {
       uint8_t setup = this->read_register(nRF24L01::RF_SETUP);
-      if (setup & (1 << nRF24L01::RF_DR_LOW))
+      if (setup & (BIT(nRF24L01::RF_DR_LOW)))
         return RF24_250KBPS;
-      if (setup & (1 << nRF24L01::RF_DR_HIGH))
+      if (setup & (BIT(nRF24L01::RF_DR_HIGH)))
         return RF24_2MBPS;
       return RF24_1MBPS;
     }

@@ -65,7 +65,7 @@ button:
             radio->set_address_width(5);
             radio->open_reading_pipe(1, 0x5555555555LL);  // search pipe
             radio->setPayloadSize(32);
-            radio->setChannel(53);
+            
             radio->setAutoAck(false);  // Disable auto-ack for search mode
             radio->disableCRC();  // Disable CRC for search mode
 
