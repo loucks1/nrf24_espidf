@@ -41,10 +41,10 @@ namespace esphome
         return;
       }
 
-      this->stop_listening();                            // Equivalent to CE Low
-      this->setAutoAck(false);                         // Disables EN_AA for all pipes
-      this->disableCRC(); // Disables CRC in CONFIG
-      this->set_channel(53);                             // Set frequency to 2453MHz
+      this->stop_listening();  // Equivalent to CE Low
+      this->setAutoAck(false); // Disables EN_AA for all pipes
+      this->disableCRC();      // Disables CRC in CONFIG
+      this->set_channel(53);   // Set frequency to 2453MHz
 
       // 3. Clean slate for
       for (uint8_t i = 0; i < 6; i++)
@@ -217,9 +217,31 @@ namespace esphome
 
     void NRF24Component::start_listening()
     {
-      this->write_register(nRF24L01::FLUSH_RX, nRF24L01::NOP);
-      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) | nRF24L01::PRIM_RX);
+      this->ce(false); // Must be in standby to change certain bits reliably
+
+      // 1. Set Config: Power Up, No CRC
+      this->write_register(nRF24L01::CONFIG, 0x02);
+
+      // 2. Disable Auto-Ack and Enable Pipe 1
+      this->write_register(nRF24L01::EN_AA, 0x00);
+      this->write_register(nRF24L01::EN_RXADDR, 0x02);
+
+      // 3. FIX: Send the RAW Flush Command (don't use write_register)
+      begin_transaction_();
+      this->transfer_byte(nRF24L01::FLUSH_RX);
+      end_transaction_();
+
+      // 4. Clear status interrupts so the radio is fresh
+      this->write_register(nRF24L01::STATUS, 0x70);
+
+      // 5. Go into RX Mode
+      uint8_t config = this->read_register(nRF24L01::CONFIG);
+      this->write_register(nRF24L01::CONFIG, config | nRF24L01::PRIM_RX);
+
       this->ce(true);
+      esp_rom_delay_us(150); // Wait for the PLL to settle (crucial for ESP-IDF)
+
+      ESP_LOGI("nrf24", "Radio is now physically listening on Ch %d", this->channel_);
     }
 
     void NRF24Component::stop_listening()
