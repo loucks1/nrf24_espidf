@@ -219,9 +219,28 @@ namespace esphome
     bool NRF24Component::available(uint8_t *pipe_num)
     {
       uint8_t status = this->read_register(nRF24L01::STATUS);
+
+      // Extract pipe number from bits 1, 2, and 3
+      uint8_t pipe = (status >> nRF24L01::RX_P_NO) & 0x07;
+
       if (pipe_num)
-        *pipe_num = (status >> nRF24L01::RX_P_NO) & 0x07;
-      return (status & nRF24L01::RX_DR);
+        *pipe_num = pipe;
+
+      // RX_DR (bit 6) triggers the check, but if pipe is 7,
+      // there is no data to actually read.
+      if ((status & nRF24L01::RX_DR) && pipe <= 5)
+      {
+        return true;
+      }
+
+      // If we are in the "Ghost Pipe 7" state, we should probably
+      // clear the interrupt flag anyway so we don't get stuck.
+      if (status & nRF24L01::RX_DR)
+      {
+        this->write_register(nRF24L01::STATUS, nRF24L01::RX_DR);
+      }
+
+      return false;
     }
 
     void NRF24Component::read(void *buf, uint8_t len)
