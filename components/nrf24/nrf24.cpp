@@ -181,23 +181,22 @@ namespace esphome
     {
       if (this->ce_pin_)
         this->ce_pin_->digital_write(level);
+      if (level) esp_rom_delay_us(130); 
     }
 
     // ====================== Mode ======================
 
     void NRF24Component::start_listening()
     {
-      this->write_register(nRF24L01::CONFIG,
-                           this->read_register(nRF24L01::CONFIG) | nRF24L01::PRIM_RX);
+      this->write_register(nRF24L01::FLUSH_RX, nRF24L01::NOP);
+      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) | nRF24L01::PRIM_RX);
       this->ce(true);
-      esp_rom_delay_us(130); // Tstby2a
     }
 
     void NRF24Component::stop_listening()
     {
       this->ce(false);
-      this->write_register(nRF24L01::CONFIG,
-                           this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PRIM_RX);
+      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PRIM_RX);
       if (this->ack_payloads_enabled_)
         this->flush_tx();
     }
@@ -219,33 +218,33 @@ namespace esphome
     bool NRF24Component::available(uint8_t *pipe_num)
     {
       uint8_t status = this->read_register(nRF24L01::STATUS);
-
-      // Extract pipe number from bits 1, 2, and 3
       uint8_t pipe = (status >> nRF24L01::RX_P_NO) & 0x07;
 
       if (pipe_num)
         *pipe_num = pipe;
 
-      // RX_DR (bit 6) triggers the check, but if pipe is 7,
-      // there is no data to actually read.
-      if ((status & nRF24L01::RX_DR) && pipe <= 5)
-      {
-        return true;
-      }
-
-      // If we are in the "Ghost Pipe 7" state, we should probably
-      // clear the interrupt flag anyway so we don't get stuck.
-      if (status & nRF24L01::RX_DR)
+      // If Data Ready is set but pipe is 7, it's a ghost packet.
+      // Clear it so the radio can move on to the next real packet.
+      if ((status & nRF24L01::RX_DR) && pipe > 5)
       {
         this->write_register(nRF24L01::STATUS, nRF24L01::RX_DR);
+        return false;
       }
 
-      return false;
+      return (status & nRF24L01::RX_DR);
     }
 
     void NRF24Component::read(void *buf, uint8_t len)
     {
-      this->read_register(nRF24L01::R_RX_PAYLOAD, (uint8_t *)buf, len);
+      begin_transaction_();
+      // 1. Send the raw R_RX_PAYLOAD command (0x61) directly
+      this->status_ = this->transfer_byte(nRF24L01::R_RX_PAYLOAD);
+
+      // 2. Read the actual payload bytes
+      this->read_array((uint8_t *)buf, len);
+      end_transaction_();
+
+      // 3. Clear the interrupt flag
       this->write_register(nRF24L01::STATUS, nRF24L01::RX_DR);
     }
 
@@ -271,10 +270,22 @@ namespace esphome
 
     void NRF24Component::start_write(const void *buf, uint8_t len, bool multicast)
     {
-      this->write_register(nRF24L01::STATUS, nRF24L01::TX_DS | nRF24L01::MAX_RT);
-      this->write_payload(buf, len, multicast ? nRF24L01::W_TX_PAYLOAD_NO_ACK : nRF24L01::W_TX_PAYLOAD);
-      this->ce(true);
-      esp_rom_delay_us(10);
+      // Determine the correct command:
+      // W_TX_PAYLOAD (0xA0) or W_TX_PAYLOAD_NOACK (0xB0)
+      uint8_t command = multicast ? nRF24L01::W_TX_PAYLOAD_NO_ACK : nRF24L01::W_TX_PAYLOAD;
+
+      this->ce(false); // Ensure we aren't in RX mode
+      this->write_register(nRF24L01::CONFIG, (this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PRIM_RX));
+
+      begin_transaction_();
+      // 1. Send the RAW command byte, NOT masked with W_REGISTER
+      this->status_ = this->transfer_byte(command);
+
+      // 2. Transfer the payload array
+      this->write_array((const uint8_t *)buf, len);
+      end_transaction_();
+
+      this->ce(true); // Pulse CE to start the transmission
     }
 
     void NRF24Component::write_payload(const void *buf, uint8_t data_len, uint8_t writeType)
