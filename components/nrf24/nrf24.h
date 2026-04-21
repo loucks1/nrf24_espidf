@@ -34,9 +34,9 @@ namespace esphome
     public:
       void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
 
-void set_spi_parent(spi::SPIComponent *parent) { this->parent_ = parent; }
-  void set_cs_pin(InternalGPIOPin *cs_pin) { this->cs_ = cs_pin; }
-  void set_data_rate(float data_rate) { /* ignored by template */ }
+      void set_spi_parent(spi::SPIComponent *parent) { this->parent_ = parent; }
+      void set_cs_pin(InternalGPIOPin *cs_pin) { this->cs_ = cs_pin; }
+      void set_data_rate(float data_rate) { /* ignored by template */ }
 
       // ==================== Core setup ====================
       void setup() override;

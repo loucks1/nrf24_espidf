@@ -41,16 +41,32 @@ namespace esphome
         return;
       }
 
+      // 1. Power Down
+      this->write_register(nRF24L01::CONFIG, 0x00);
+      esp_rom_delay_us(5000);
+
+      // 2. Set 1Mbps / Max Power
+      this->write_register(nRF24L01::RF_SETUP, 0x06);
+
+      // 3. Clear all Status flags
+      this->write_register(nRF24L01::STATUS, 0x70);
+
+      // 4. Flush the pipes
+      this->begin_transaction_();
+      this->transfer_byte(nRF24L01::FLUSH_RX);
+      this->end_transaction_();
+
+      // 5. Power Up + RX Mode + 2-byte CRC
+      // Using 0x0F covers all bases for a standard 1Mbps remote
+      this->write_register(nRF24L01::CONFIG, 0x0F);
+      this->ce(true);
+
       this->stop_listening();  // Equivalent to CE Low
       this->setAutoAck(false); // Disables EN_AA for all pipes
       this->disableCRC();      // Disables CRC in CONFIG
       this->set_channel(53);   // Set frequency to 2453MHz
 
       // 3. Clean slate for
-      for (uint8_t i = 0; i < 6; i++)
-      {
-        this->close_reading_pipe(i);
-      }
 
       // 4. Match enterRemoteSearchMode()
       this->set_address_width(5);
@@ -67,12 +83,45 @@ namespace esphome
 
     void NRF24Component::dump_config()
     {
-      ESP_LOGCONFIG(TAG, "nRF24L01+ Radio:");
-      LOG_PIN("  CE Pin:", this->ce_pin_);
+      ESP_LOGCONFIG(TAG, "nRF24L01+ Radio Diagnostic Dump:");
+      LOG_PIN("   CE Pin:", this->ce_pin_);
       LOG_SPI_DEVICE(this);
-      this->printPrettyDetails();
-    }
 
+      // 1. Basic Pretty Print (if available)
+      this->printPrettyDetails();
+
+      // 2. RAW REGISTER DUMP (The "Truth" for sniffing)
+      ESP_LOGCONFIG(TAG, "  --- Sniffing State ---");
+      uint8_t config = this->read_register(nRF24L01::CONFIG);
+      uint8_t en_aa = this->read_register(nRF24L01::EN_AA);
+      uint8_t en_rx = this->read_register(nRF24L01::EN_RXADDR);
+      uint8_t setup_aw = this->read_register(nRF24L01::SETUP_AW);
+      uint8_t setup_retr = this->read_register(nRF24L01::SETUP_RETR);
+      uint8_t rf_ch = this->read_register(nRF24L01::RF_CH);
+      uint8_t rf_setup = this->read_register(nRF24L01::RF_SETUP);
+      uint8_t status = this->read_register(nRF24L01::STATUS);
+      uint8_t observe_tx = this->read_register(nRF24L01::OBSERVE_TX);
+      uint8_t rpd = this->read_register(nRF24L01::RPD); // Carrier Detect
+      uint8_t dynpd = this->read_register(nRF24L01::DYNPD);
+      uint8_t feature = this->read_register(nRF24L01::FEATURE);
+
+      ESP_LOGCONFIG(TAG, "    CONFIG:   0x%02X (%s)", config, (config & 0x08) ? "CRC ENABLED!" : "CRC Disabled");
+      ESP_LOGCONFIG(TAG, "    EN_AA:    0x%02X (%s)", en_aa, (en_aa == 0x00) ? "Promiscuous OK" : "AUTO-ACK ON!");
+      ESP_LOGCONFIG(TAG, "    EN_RX:    0x%02X (Pipes Enabled)", en_rx);
+      ESP_LOGCONFIG(TAG, "    SETUP_AW: 0x%02X (Address Width)", setup_aw);
+      ESP_LOGCONFIG(TAG, "    SETUP_RE: 0x%02X (Retransmission)", setup_retr);
+      ESP_LOGCONFIG(TAG, "    RF_CH:    0x%02X (Hex %02X = Dec %d)", rf_ch, rf_ch, rf_ch);
+      ESP_LOGCONFIG(TAG, "    RF_SETUP: 0x%02X (Data Rate/Power)", rf_setup);
+      ESP_LOGCONFIG(TAG, "    STATUS:   0x%02X", status);
+      ESP_LOGCONFIG(TAG, "    RPD:      0x%02X (Signal Strength)", rpd);
+      ESP_LOGCONFIG(TAG, "    DYNPD:    0x%02X", dynpd);
+      ESP_LOGCONFIG(TAG, "    FEATURE:  0x%02X", feature);
+
+      // 3. READ THE PIPE 1 ADDRESS (Where the remote should land)
+      uint8_t addr[5];
+      this->read_register(nRF24L01::RX_ADDR_P1, addr, 5);
+      ESP_LOGCONFIG(TAG, "    RX_ADDR_P1: %02X:%02X:%02X:%02X:%02X", addr[0], addr[1], addr[2], addr[3], addr[4]);
+    }
     // ====================== SPI Helpers ======================
 
     void NRF24Component::begin_transaction_()
@@ -114,10 +163,10 @@ namespace esphome
     void NRF24Component::write_register(uint8_t reg, uint8_t value)
     {
       begin_transaction_();
-      // Send Write Command (0x20 | reg). Store status.
-      this->status_ = this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
 
+      this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
       this->transfer_byte(value);
+
       end_transaction_();
     }
 
@@ -217,39 +266,22 @@ namespace esphome
 
     void NRF24Component::start_listening()
     {
-      this->ce(false); // Must be in standby to change certain bits reliably
-
-      // 1. Set Config: Power Up, No CRC
-      this->write_register(nRF24L01::CONFIG, 0x02);
-
-      // 2. Disable Auto-Ack and Enable Pipe 1
-      this->write_register(nRF24L01::EN_AA, 0x00);
-      this->write_register(nRF24L01::EN_RXADDR, 0x02);
-
-      // 3. FIX: Send the RAW Flush Command (don't use write_register)
-      begin_transaction_();
-      this->transfer_byte(nRF24L01::FLUSH_RX);
-      end_transaction_();
-
-      // 4. Clear status interrupts so the radio is fresh
-      this->write_register(nRF24L01::STATUS, 0x70);
-
-      // 5. Go into RX Mode
-      uint8_t config = this->read_register(nRF24L01::CONFIG);
-      this->write_register(nRF24L01::CONFIG, config | nRF24L01::PRIM_RX);
-
+      config_reg_ |= BIT(nRF24L01::PWR_UP) | BIT(nRF24L01::PRIM_RX);
+      write_register(nRF24L01::CONFIG, config_reg_);
+      write_register(nRF24L01::STATUS, RF24_IRQ_ALL);
       this->ce(true);
-      esp_rom_delay_us(150); // Wait for the PLL to settle (crucial for ESP-IDF)
-
-      ESP_LOGI("nrf24", "Radio is now physically listening on Ch %d", this->channel_);
     }
 
     void NRF24Component::stop_listening()
     {
       this->ce(false);
-      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PRIM_RX);
+      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) & ~BIT(nRF24L01::PRIM_RX));
       if (this->ack_payloads_enabled_)
         this->flush_tx();
+      for (uint8_t i = 0; i < 6; i++)
+      {
+        this->close_reading_pipe(i);
+      }
     }
 
     void NRF24Component::stop_listening(const uint8_t *tx_address)
@@ -399,31 +431,45 @@ namespace esphome
 
     void NRF24Component::open_reading_pipe(uint8_t number, const uint8_t *address)
     {
+      if (number > 5)
+        return; // Hardware limit
+
+      // 1. Correct Register Mapping
+      uint8_t reg = nRF24L01::RX_ADDR_P0 + number;
+
+      // 2. Write the Address
       if (number < 2)
       {
-        this->write_register(nRF24L01::RX_ADDR_P0 + number, address, 5);
+        // Pipes 0 and 1 have full 5-byte addresses
+        this->write_register(reg, address, 5);
       }
       else
       {
-        this->write_register(nRF24L01::RX_ADDR_P0 + number, address, 1);
+        // Pipes 2-5 only store the LSB (1 byte).
+        // They inherit the first 4 bytes of Pipe 1.
+        this->write_register(reg, address, 1);
       }
-      this->write_register(nRF24L01::EN_RXADDR,
-                           this->read_register(nRF24L01::EN_RXADDR) | (1 << number));
+
+      // 3. Enable the Pipe (Explicitly)
+      // Instead of a Read-Modify-Write, consider if you want to FORCE
+      // only this pipe open for sniffing stability.
+      uint8_t en_reg = this->read_register(nRF24L01::EN_RXADDR);
+      this->write_register(nRF24L01::EN_RXADDR, en_reg | (1 << number));
     }
 
     void NRF24Component::set_address_width(uint8_t a_width)
     {
-      // nRF24L01 supports 3, 4, or 5 bytes.
-      // SETUP_AW bits: 01=3bytes, 10=4bytes, 11=5bytes
-      if (a_width < 3)
-        a_width = 3;
-      if (a_width > 5)
-        a_width = 5;
-
-      // The register value is width - 2
-      // 3 bytes -> 1, 4 bytes -> 2, 5 bytes -> 3
-      this->write_register(nRF24L01::SETUP_AW, (uint8_t)(a_width - 2));
-      this->addr_width_ = a_width; // Store this for use in open_reading_pipe
+      a_width = static_cast<uint8_t>(a_width - 2);
+      if (a_width)
+      {
+        write_register(nRF24L01::SETUP_AW, static_cast<uint8_t>(a_width % 4));
+        this->addr_width_ = static_cast<uint8_t>((a_width % 4) + 2);
+      }
+      else
+      {
+        write_register(nRF24L01::SETUP_AW, static_cast<uint8_t>(0));
+        this->addr_width_ = static_cast<uint8_t>(2);
+      }
     }
 
     void NRF24Component::open_reading_pipe(uint8_t number, uint64_t address)
@@ -459,13 +505,32 @@ namespace esphome
 
     bool NRF24Component::set_rf_data_rate(rf24_datarate_e speed)
     {
-      uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(0x28);
-      if (speed == RF24_250KBPS)
-        setup |= (1 << nRF24L01::RF_DR_LOW);
-      else if (speed == RF24_2MBPS)
-        setup |= (1 << nRF24L01::RF_DR_HIGH);
-      this->write_register(nRF24L01::RF_SETUP, setup);
-      return true;
+
+      this->write_register(nRF24L01::RF_SETUP, 0x06);
+      return true; // force to 1Mbps
+                   //    bool result = false;
+                   //    uint8_t setup = read_register(nRF24L01::RF_SETUP);
+
+      //    // HIGH and LOW '00' is 1Mbs - our default
+      //    setup = static_cast<uint8_t>(setup & ~(BIT(nRF24L01::RF_DR_LOW) | BIT(nRF24L01::RF_DR_HIGH)));
+      //    setup |= _data_rate_reg_value(speed);
+
+      //    write_register(nRF24L01::RF_SETUP, setup);
+
+      //    // Verify our result
+      //    if (read_register(nRF24L01::RF_SETUP) == setup)
+      //    {
+      //      result = true;
+      //    }
+      //    return result;
+
+      //    uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(0x28);
+      //    if (speed == RF24_250KBPS)
+      //      setup |= BIT(nRF24L01::RF_DR_LOW);
+      //    else if (speed == RF24_2MBPS)
+      //      setup |= BIT(nRF24L01::RF_DR_HIGH);
+      //    this->write_register(nRF24L01::RF_SETUP, setup);
+      //    return true;
     }
 
     rf24_datarate_e NRF24Component::getDataRate()

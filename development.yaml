@@ -62,16 +62,10 @@ button:
             auto& radio = id(my_nrf24);
             radio->stop_listening();
 
-            radio->close_reading_pipe(0);  // Close the default pipe to avoid conflicts
-            radio->close_reading_pipe(1);  // Close the default pipe to avoid conflicts
-            radio->close_reading_pipe(2);  // Close the default pipe to avoid conflicts
-            radio->close_reading_pipe(3);  // Close the default pipe to avoid conflicts
-            radio->close_reading_pipe(4);  // Close the default pipe to avoid conflicts
-            radio->close_reading_pipe(5);  // Close the default pipe to avoid conflicts
-
             radio->set_address_width(5);
             radio->open_reading_pipe(1, 0x5555555555LL);  // search pipe
             radio->setPayloadSize(32);
+            radio->setChannel(53);
             radio->setAutoAck(false);  // Disable auto-ack for search mode
             radio->disableCRC();  // Disable CRC for search mode
 
@@ -101,10 +95,6 @@ script:
             - lambda: |-
                 auto& radio = *id(my_nrf24); // Use the pointer correctly
 
-                if (radio.testCarrier()) {
-                 ESP_LOGD("nrf24", "Energy detected on Channel 53!");
-                }
-
                 uint8_t pipe;
                 // The ESPHome nrf24 component usually handles the 'available' 
                 // check internally. We just need to grab the data if it's there.
@@ -130,8 +120,16 @@ script:
                     radio.start_listening();
                   }
                 }
-            - delay: 50ms  # Yield to system and control polling rate            
+            - delay: 5ms  # Yield to system and control polling rate            
+            - lambda: |-
+                static uint32_t last_dump = 0;
+                uint32_t now = millis();
 
+                // Run if it's the first time (last_dump == 0) OR if 10 seconds have passed
+                if (last_dump == 0 || now - last_dump >= 100000) {
+                  id(my_nrf24).dump_config();
+                  last_dump = now;
+                }
 # Global variable to track search mode
 globals:
   - id: search_mode
