@@ -17,11 +17,11 @@ namespace esphome
 
     /** Re-exported enums from original library for full compatibility */
     // Change these lines:
-    typedef nRF24L01::rf24_pa_dbm_e rf24_pa_dbm_e;
-    typedef nRF24L01::rf24_datarate_e rf24_datarate_e;
-    typedef nRF24L01::rf24_crclength_e rf24_crclength_e;
-    typedef nRF24L01::rf24_fifo_state_e rf24_fifo_state_e;
-    typedef nRF24L01::rf24_irq_flags_e rf24_irq_flags_e;
+    using rf24_pa_dbm_e = nRF24L01::rf24_pa_dbm_e;
+    using rf24_datarate_e = nRF24L01::rf24_datarate_e;
+    using rf24_crclength_e = nRF24L01::rf24_crclength_e;
+    using rf24_fifo_state_e = nRF24L01::rf24_fifo_state_e;
+    using rf24_irq_flags_e = nRF24L01::rf24_irq_flags_e;
 
     /** Main nRF24L01+ component with full original RF24 API compatibility */
     class NRF24Component : public Component,
@@ -34,23 +34,21 @@ namespace esphome
     public:
       void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
 
-      void set_spi_parent(spi::SPIComponent *parent) { this->parent_ = parent; }
-      void set_cs_pin(InternalGPIOPin *cs_pin) { this->cs_ = cs_pin; }
-      void set_data_rate(float data_rate) { /* ignored by template */ }
-
       // ==================== Core setup ====================
       void setup() override;
+      void loop() override;
       void dump_config() override;
 
-      bool begin();
       bool begin(GPIOPin *ce_pin); // csn is handled by SPIDevice
 
       bool is_chip_connected();
 
-      void set_channel(uint8_t channel);
-      void set_data_rate_str(const std::string &data_rate);
-      void set_pa_level_str(const std::string &pa_level);
-      void set_payload_size(uint8_t size);
+      using on_data_callback_t = std::function<void(const uint8_t *, uint8_t)>;
+
+      void add_on_data_callback(on_data_callback_t &&callback)
+      {
+        this->on_data_callbacks_.push_back(std::move(callback));
+      }
 
       // ==================== Operating mode ====================
       void start_listening();
@@ -77,9 +75,11 @@ namespace esphome
       void close_reading_pipe(uint8_t pipe);
 
       // ==================== Configuration ====================
-      void setPALevel(rf24_pa_dbm_e level, bool lna_enable = true);
+
+      void setPALevel(rf24_pa_dbm_e level, bool lna_enable);
+      bool setRFDataRate(rf24_datarate_e speed);
+
       rf24_pa_dbm_e getPALevel();
-      bool set_rf_data_rate(rf24_datarate_e speed);
       rf24_datarate_e getDataRate();
       void setCRCLength(rf24_crclength_e length);
       rf24_crclength_e getCRCLength();
@@ -87,7 +87,6 @@ namespace esphome
       void setRetries(uint8_t delay, uint8_t count);
       void setChannel(uint8_t channel);
       uint8_t getChannel();
-      void setPayloadSize(uint8_t size);
       uint8_t getPayloadSize();
       uint8_t getDynamicPayloadSize();
 
@@ -131,10 +130,18 @@ namespace esphome
       // CE control (public for advanced use)
       void ce(bool level);
 
+      // ESPHOME CODEGEN ONLY (Do not call manually)
+      void set_channel(uint8_t channel) { this->channel_ = channel; }
+      void set_payload_size(uint8_t size) { this->payload_size_ = size; }
+      void set_rf_data_rate(rf24_datarate_e speed) { this->data_rate_ = speed; }
+      void set_pa_level(rf24_pa_dbm_e level) { this->pa_level_ = level; }
+
     protected:
       // SPI transaction helpers (used by all register functions)
       void begin_transaction_();
       void end_transaction_();
+
+      std::vector<on_data_callback_t> on_data_callbacks_;
 
       uint8_t read_register(uint8_t reg);
       void read_register(uint8_t reg, uint8_t *buf, uint8_t len);
@@ -145,6 +152,11 @@ namespace esphome
 
       void start_write(const void *buf, uint8_t len, bool multicast);
       void write_payload(const void *buf, uint8_t data_len, uint8_t writeType);
+
+      uint32_t last_watchdog_check_{0};
+      bool hardware_initialized_{false};
+      bool soft_reset();
+      bool is_listening_{false};
 
     private:
       GPIOPin *ce_pin_{nullptr};
@@ -163,8 +175,7 @@ namespace esphome
       nRF24L01::rf24_pa_dbm_e pa_level_{nRF24L01::RF24_PA_MAX};
       nRF24L01::rf24_datarate_e data_rate_{nRF24L01::RF24_1MBPS};
       nRF24L01::rf24_crclength_e crc_length_{nRF24L01::RF24_CRC_16};
-
-      void setup_pins_();
+    
     };
 
   } // namespace nrf24
