@@ -41,15 +41,14 @@ external_components:
 
 # ====================== nRF24 RADIO ======================
 nrf24:
-  - id: my_nrf24
-    spi_id: nrf24_spi
-    cs_pin: GPIO21          # This is the CSN pin (handled by SPIDevice)
-    ce_pin: GPIO22          # This is the CE pin (handled by SPIDevice)
-    channel: 53
-    rf_datarate: "1MBPS"      # options: 250KBPS, 1MBPS, 2MBPS
-    pa_level: "MAX"         # MIN, LOW, HIGH, MAX
-    payload_size: 32        # default 32, can be smaller
-    data_rate: 1MHz
+  id: my_nrf24
+  spi_id: nrf24_spi
+  cs_pin: GPIO21          # This is the CSN pin (handled by SPIDevice)
+  ce_pin: GPIO22          # This is the CE pin (handled by SPIDevice)
+  channel: 53
+  rf_datarate: "1MBPS"      # options: 250KBPS, 1MBPS, 2MBPS
+  pa_level: "MAX"         # MIN, LOW, HIGH, MAX
+  data_rate: 1MHz
 
 button:
   - platform: restart
@@ -137,7 +136,4 @@ globals:
   - id: search_mode
     type: bool
     restore_value: false
-    initial_value: 'false'
-
-
-    
+    initial_value: 'false'   
