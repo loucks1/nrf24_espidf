@@ -633,13 +633,13 @@ namespace esphome
     {
       this->ce(false);
       this->write_register(nRF24L01::CONFIG,
-                           this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PWR_UP);
+                           this->read_register(nRF24L01::CONFIG) & ~BIT(nRF24L01::PWR_UP));
     }
 
     void NRF24Component::power_up()
     {
       this->write_register(nRF24L01::CONFIG,
-                           this->read_register(nRF24L01::CONFIG) | nRF24L01::PWR_UP);
+                           this->read_register(nRF24L01::CONFIG) | BIT(nRF24L01::PWR_UP));
       delay(5); 
     }
 
