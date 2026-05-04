@@ -41,7 +41,7 @@ constexpr uint8_t TX_DS = 5;
  * Power Amplifier level. The units dBm (decibel-milliwatts or dB<sub>mW</sub>)
  * represents a logarithmic signal loss.
  * @see
- * - RF24::setPALevel()
+ * - RF24::set_pa_level()
  * - RF24::getPALevel()
  * @{
  */

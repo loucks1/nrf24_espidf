@@ -4,26 +4,19 @@
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/gpio.h"
 
-#include "nRF24L01.h" // You should copy the original nRF24L01.h next to this file
+#include "nRF24L01.h"
 
 namespace esphome
 {
   namespace nrf24
   {
-
-    using ::nRF24L01::rf24_crclength_e;
-    using ::nRF24L01::rf24_datarate_e;
-    using ::nRF24L01::rf24_pa_dbm_e;
-
     /** Re-exported enums from original library for full compatibility */
-    // Change these lines:
     using rf24_pa_dbm_e = nRF24L01::rf24_pa_dbm_e;
     using rf24_datarate_e = nRF24L01::rf24_datarate_e;
     using rf24_crclength_e = nRF24L01::rf24_crclength_e;
     using rf24_fifo_state_e = nRF24L01::rf24_fifo_state_e;
     using rf24_irq_flags_e = nRF24L01::rf24_irq_flags_e;
 
-    /** Main nRF24L01+ component with full original RF24 API compatibility */
     class NRF24Component : public Component,
                            public spi::SPIDevice<spi::BIT_ORDER_MSB_FIRST,
                                                  spi::CLOCK_POLARITY_LOW,
@@ -38,8 +31,6 @@ namespace esphome
       void setup() override;
       void loop() override;
       void dump_config() override;
-
-      bool begin(GPIOPin *ce_pin); // csn is handled by SPIDevice
 
       bool is_chip_connected();
 
@@ -61,80 +52,79 @@ namespace esphome
       void read(void *buf, uint8_t len);
       bool write(const void *buf, uint8_t len);
       bool write(const void *buf, uint8_t len, bool multicast);
-      bool writeFast(const void *buf, uint8_t len);
-      bool writeFast(const void *buf, uint8_t len, bool multicast);
-      bool writeBlocking(const void *buf, uint8_t len, uint32_t timeout);
+      bool write_fast(const void *buf, uint8_t len);
+      bool write_fast(const void *buf, uint8_t len, bool multicast);
+      bool write_blocking(const void *buf, uint8_t len, uint32_t timeout);
 
       // ==================== Pipes & Addressing ====================
       void open_writing_pipe(const uint8_t *address);
       void open_writing_pipe(uint64_t address);
       void open_reading_pipe(uint8_t number, const uint8_t *address);
       void open_reading_pipe(uint8_t number, uint64_t address);
-      void set_address_width(uint8_t a_width);
+      void set_address_width(uint8_t address_width);
 
       void close_reading_pipe(uint8_t pipe);
 
       // ==================== Configuration ====================
 
-      void setPALevel(rf24_pa_dbm_e level, bool lna_enable);
-      bool setRFDataRate(rf24_datarate_e speed);
+      void set_retries(uint8_t delay, uint8_t count);
+      void set_channel(uint8_t channel);
+      void set_pa_level(rf24_pa_dbm_e level, bool lna_enable);
+      bool set_rf_data_rate(rf24_datarate_e speed);
+      void set_crc_length(rf24_crclength_e length);
+      void disable_crc();
 
-      rf24_pa_dbm_e getPALevel();
-      rf24_datarate_e getDataRate();
-      void setCRCLength(rf24_crclength_e length);
-      rf24_crclength_e getCRCLength();
-      void disableCRC();
-      void setRetries(uint8_t delay, uint8_t count);
-      void setChannel(uint8_t channel);
-      uint8_t getChannel();
-      uint8_t getPayloadSize();
-      uint8_t getDynamicPayloadSize();
+      uint8_t get_channel();
+      rf24_pa_dbm_e get_pa_level();
+      rf24_datarate_e get_rf_data_rate();
+      rf24_crclength_e get_crc_length();
+
+      uint8_t get_payload_size();
+      uint8_t get_dynamic_payload_size();
 
       // ==================== Features ====================
-      void enableAckPayload();
-      void disableAckPayload();
-      void enableDynamicPayloads();
-      void disableDynamicPayloads();
-      bool isPVariant();
-      void setAutoAck(bool enable);
-      void setAutoAck(uint8_t pipe, bool enable);
+      void enable_ack_payload();
+      void disable_ack_payload();
+      void enable_dynamic_payloads();
+      void disable_dynamic_payloads();
+      void set_auto_ack(bool enable);
+      void set_auto_ack(uint8_t pipe, bool enable);
 
       // ==================== ACK Payloads ====================
-      void writeAckPayload(uint8_t pipe, const void *buf, uint8_t len);
-      bool isAckPayloadAvailable();
+      void write_ack_payload(uint8_t pipe, const void *buf, uint8_t len);
+      bool is_ack_payload_available();
 
       // ==================== Power management ====================
-      void powerDown();
-      void powerUp();
+      void power_down();
+      void power_up();
 
       // ==================== Status & Debug ====================
-      void maskIRQ(bool tx_ok, bool tx_fail, bool rx_ready);
-      uint8_t whatHappened(); // returns rf24_irq_flags_e bits
-      void printDetails();
-      void printPrettyDetails();
-      void printStatus();
-      void printObserveTx();
+      void mask_irq(bool tx_ok, bool tx_fail, bool rx_ready);
+      uint8_t what_happened(); // returns rf24_irq_flags_e bits
+      void print_details();
+      void print_pretty_details();
+      void print_status();
+      void print_observe_tx();
 
       // FIFO status
-      nRF24L01::rf24_fifo_state_e isFifo(bool tx);
-      bool txStandBy();
-      bool txStandBy(uint32_t timeout, bool startTx = false);
+      nRF24L01::rf24_fifo_state_e is_fifo(bool tx);
+      bool tx_standby();
+      bool tx_standby(uint32_t timeout, bool startTx = false);
 
       // Low-level helpers
       void flush_tx();
       void flush_rx();
       void reuse_tx_pl();
-      bool testCarrier();
-      bool testRPD();
+      bool test_carrier();
+      bool test_rpd();
 
       // CE control (public for advanced use)
       void ce(bool level);
 
       // ESPHOME CODEGEN ONLY (Do not call manually)
-      void set_channel(uint8_t channel) { this->channel_ = channel; }
-      void set_payload_size(uint8_t size) { this->payload_size_ = size; }
-      void set_rf_data_rate(rf24_datarate_e speed) { this->data_rate_ = speed; }
-      void set_pa_level(rf24_pa_dbm_e level) { this->pa_level_ = level; }
+      void set_channel_(uint8_t channel) { this->channel_ = channel; }
+      void set_rf_data_rate_(rf24_datarate_e rf_data_rate) { this->rf_data_rate_ = rf_data_rate; }
+      void set_pa_level_(rf24_pa_dbm_e pa_level) { this->pa_level_ = pa_level; }
 
     protected:
       // SPI transaction helpers (used by all register functions)
@@ -158,24 +148,22 @@ namespace esphome
       bool soft_reset();
       bool is_listening_{false};
 
-    private:
       GPIOPin *ce_pin_{nullptr};
-      uint32_t spi_speed_;
-      uint8_t status_{0};
-      uint8_t payload_size_{32};
-      uint8_t addr_width_{5};
-      uint8_t pipe0_reading_address_[5]{};
-      uint8_t pipe0_writing_address_[5]{};
-      bool dynamic_payloads_enabled_{false};
-      bool ack_payloads_enabled_{false};
-      bool _is_p_variant{false};
-      bool _is_p0_rx{false};
-      uint8_t config_reg_{0};
+
       uint8_t channel_{76};
+      uint8_t payload_size_{32};
+      bool dynamic_payloads_enabled_{false};
+      uint8_t addr_width_{5};
+      uint8_t status_{0};
+      uint8_t config_reg_{0};
+      bool ack_payloads_enabled_{false};
+      uint8_t pipe0_writing_address_[5]{};
+
       nRF24L01::rf24_pa_dbm_e pa_level_{nRF24L01::RF24_PA_MAX};
-      nRF24L01::rf24_datarate_e data_rate_{nRF24L01::RF24_1MBPS};
+      nRF24L01::rf24_datarate_e rf_data_rate_{nRF24L01::RF24_1MBPS};
       nRF24L01::rf24_crclength_e crc_length_{nRF24L01::RF24_CRC_16};
-    
+
+    private:
     };
 
   } // namespace nrf24

@@ -25,7 +25,8 @@ PA_LEVELS = {
 }
 
 CONF_CE_PIN = "ce_pin"
-CONF_RF_DATARATE = "rf_datarate"
+CONF_CHANNEL = "channel"
+CONF_RF_DATA_RATE = "rf_data_rate"
 CONF_PA_LEVEL = "pa_level"
 
 CONFIG_SCHEMA = spi.spi_device_schema(cs_pin_required=True).extend(
@@ -34,7 +35,7 @@ CONFIG_SCHEMA = spi.spi_device_schema(cs_pin_required=True).extend(
         cv.Required(CONF_CE_PIN): pins.gpio_output_pin_schema,
         cv.Optional(CONF_CHANNEL, default=76): cv.int_range(0, 125),
         # We use rf_datarate here to distinguish from SPI data_rate
-        cv.Optional(CONF_RF_DATARATE, default="1MBPS"): cv.enum(RF_DATARATES, upper=True),
+        cv.Optional(CONF_RF_DATA_RATE, default="1MBPS"): cv.enum(RF_DATARATES, upper=True),
         cv.Optional(CONF_PA_LEVEL, default="MAX"): cv.enum(PA_LEVELS, upper=True),    
     }
 ).extend(cv.COMPONENT_SCHEMA)
@@ -48,6 +49,6 @@ async def to_code(config):
 
     ce_pin = await cg.gpio_pin_expression(config[CONF_CE_PIN])
     cg.add(var.set_ce_pin(ce_pin))
-    cg.add(var.set_channel(config[CONF_CHANNEL]))
-    cg.add(var.set_rf_data_rate(config[CONF_RF_DATARATE]))
-    cg.add(var.set_pa_level(config[CONF_PA_LEVEL]))
+    cg.add(var.set_channel_(config[CONF_CHANNEL]))
+    cg.add(var.set_rf_data_rate_(config[CONF_RF_DATA_RATE]))
+    cg.add(var.set_pa_level_(config[CONF_PA_LEVEL]))

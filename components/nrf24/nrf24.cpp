@@ -31,9 +31,9 @@ namespace esphome
 
     bool NRF24Component::soft_reset()
     {
-      this->powerDown();
+      this->power_down();
       delay(10);
-      this->powerUp();
+      this->power_up();
       delay(10); // Wait for crystal stabilization
 
       // 2. Validate Connection
@@ -48,9 +48,9 @@ namespace esphome
       this->flush_rx();
       this->flush_tx();
 
-      setChannel(this->channel_);
-      setRFDataRate(this->data_rate_);
-      setPALevel(this->pa_level_, true);
+      set_channel(this->channel_);
+      set_rf_data_rate(this->rf_data_rate_);
+      set_pa_level(this->pa_level_, true);
       ESP_LOGI(TAG, "nRF24L01+ initialized successfully.");
       this->hardware_initialized_ = true;
       return true;
@@ -76,10 +76,10 @@ namespace esphome
 
       if (this->hardware_initialized_ && this->is_listening_ && !this->on_data_callbacks_.empty() && this->available())
       {
-        uint8_t len = this->getPayloadSize();
+        uint8_t len = this->get_payload_size();
         if (dynamic_payloads_enabled_)
         {
-          len = this->getDynamicPayloadSize();
+          len = this->get_dynamic_payload_size();
         }
 
         if (len == 0 || len > 32)
@@ -104,9 +104,7 @@ namespace esphome
 
     void NRF24Component::dump_config()
     {
-
-      // 1. Basic Pretty Print (if available)
-      this->printPrettyDetails();
+      this->print_pretty_details();
       LOG_PIN("   CE Pin:", this->ce_pin_);
       LOG_SPI_DEVICE(this);
       if (ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE)
@@ -125,7 +123,7 @@ namespace esphome
         uint8_t status = this->read_register(nRF24L01::STATUS);
         uint8_t observe_tx = this->read_register(nRF24L01::OBSERVE_TX);
         uint8_t rpd = this->read_register(nRF24L01::RPD);
-        bool carrier = this->testCarrier();
+        bool carrier = this->test_carrier();
         uint8_t dynpd = this->read_register(nRF24L01::DYNPD);
         uint8_t feature = this->read_register(nRF24L01::FEATURE);
 
@@ -360,26 +358,26 @@ namespace esphome
       end_transaction_();
     }
 
-    bool NRF24Component::writeFast(const void *buf, uint8_t len)
+    bool NRF24Component::write_fast(const void *buf, uint8_t len)
     {
-      return this->writeFast(buf, len, false);
+      return this->write_fast(buf, len, false);
     }
 
-    bool NRF24Component::writeFast(const void *buf, uint8_t len, bool multicast)
+    bool NRF24Component::write_fast(const void *buf, uint8_t len, bool multicast)
     {
       this->start_write(buf, len, multicast);
-      return true; // caller should check txStandBy()
+      return true; 
     }
 
-    bool NRF24Component::writeBlocking(const void *buf, uint8_t len, uint32_t timeout)
+    bool NRF24Component::write_blocking(const void *buf, uint8_t len, uint32_t timeout)
     {
       uint32_t start = millis();
-      while (!this->writeFast(buf, len))
+      while (!this->write_fast(buf, len))
       {
         if (millis() - start > timeout)
           return false;
       }
-      return this->txStandBy(timeout - (millis() - start));
+      return this->tx_standby(timeout - (millis() - start));
     }
 
     // ====================== Pipes ======================
@@ -465,19 +463,19 @@ namespace esphome
 
     // ====================== Configuration ======================
 
-    void NRF24Component::setPALevel(rf24_pa_dbm_e level, bool lna_enable)
+    void NRF24Component::set_pa_level(rf24_pa_dbm_e level, bool lna_enable)
     {
       uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & 0xF8;
       setup |= (level << 1) | (lna_enable ? 1 : 0);
       this->write_register(nRF24L01::RF_SETUP, setup);
     }
 
-    rf24_pa_dbm_e NRF24Component::getPALevel()
+    rf24_pa_dbm_e NRF24Component::get_pa_level()
     {
       return (rf24_pa_dbm_e)((this->read_register(nRF24L01::RF_SETUP) & 0x06) >> 1);
     }
 
-    bool NRF24Component::setRFDataRate(rf24_datarate_e speed)
+    bool NRF24Component::set_rf_data_rate(rf24_datarate_e speed)
     {
       // 0x28 is correct: it masks out Bit 5 (DR_LOW) and Bit 3 (DR_HIGH)
       uint8_t setup = this->read_register(nRF24L01::RF_SETUP) & ~(BIT(nRF24L01::RF_DR_LOW) | BIT(nRF24L01::RF_DR_HIGH));
@@ -509,7 +507,7 @@ namespace esphome
       return true;
     }
 
-    rf24_datarate_e NRF24Component::getDataRate()
+    rf24_datarate_e NRF24Component::get_rf_data_rate()
     {
       uint8_t setup = this->read_register(nRF24L01::RF_SETUP);
       if (setup & (BIT(nRF24L01::RF_DR_LOW)))
@@ -519,7 +517,7 @@ namespace esphome
       return RF24_1MBPS;
     }
 
-    void NRF24Component::setCRCLength(rf24_crclength_e length)
+    void NRF24Component::set_crc_length(rf24_crclength_e length)
     {
       uint8_t config = this->read_register(nRF24L01::CONFIG) & ~(0x0C);
       if (length == RF24_CRC_8)
@@ -529,7 +527,7 @@ namespace esphome
       this->write_register(nRF24L01::CONFIG, config);
     }
 
-    rf24_crclength_e NRF24Component::getCRCLength()
+    rf24_crclength_e NRF24Component::get_crc_length()
     {
       uint8_t config = this->read_register(nRF24L01::CONFIG) & 0x0C;
       if (config == 0x0C)
@@ -539,53 +537,53 @@ namespace esphome
       return RF24_CRC_DISABLED;
     }
 
-    void NRF24Component::disableCRC()
+    void NRF24Component::disable_crc()
     {
-      this->setCRCLength(RF24_CRC_DISABLED);
+      this->set_crc_length(RF24_CRC_DISABLED);
     }
 
-    void NRF24Component::setRetries(uint8_t delay, uint8_t count)
+    void NRF24Component::set_retries(uint8_t delay, uint8_t count)
     {
       this->write_register(nRF24L01::SETUP_RETR, (delay & 0x0F) << 4 | (count & 0x0F));
     }
 
-    void NRF24Component::setChannel(uint8_t channel)
+    void NRF24Component::set_channel(uint8_t channel)
     {
       this->write_register(nRF24L01::RF_CH, channel);
     }
 
-    uint8_t NRF24Component::getChannel()
+    uint8_t NRF24Component::get_channel()
     {
       return this->read_register(nRF24L01::RF_CH);
     }
 
-    uint8_t NRF24Component::getPayloadSize()
+    uint8_t NRF24Component::get_payload_size()
     {
       return this->payload_size_;
     }
 
-    uint8_t NRF24Component::getDynamicPayloadSize()
+    uint8_t NRF24Component::get_dynamic_payload_size()
     {
       return this->read_register(nRF24L01::R_RX_PL_WID);
     }
 
     // ====================== Features ======================
 
-    void NRF24Component::enableAckPayload()
+    void NRF24Component::enable_ack_payload()
     {
       this->ack_payloads_enabled_ = true;
       this->write_register(nRF24L01::FEATURE,
                            this->read_register(nRF24L01::FEATURE) | nRF24L01::EN_ACK_PAY);
     }
 
-    void NRF24Component::disableAckPayload()
+    void NRF24Component::disable_ack_payload()
     {
       this->ack_payloads_enabled_ = false;
       this->write_register(nRF24L01::FEATURE,
                            this->read_register(nRF24L01::FEATURE) & ~nRF24L01::EN_ACK_PAY);
     }
 
-    void NRF24Component::enableDynamicPayloads()
+    void NRF24Component::enable_dynamic_payloads()
     {
       this->dynamic_payloads_enabled_ = true;
       this->write_register(nRF24L01::FEATURE,
@@ -593,7 +591,7 @@ namespace esphome
       this->write_register(nRF24L01::DYNPD, 0x3F);
     }
 
-    void NRF24Component::disableDynamicPayloads()
+    void NRF24Component::disable_dynamic_payloads()
     {
       this->dynamic_payloads_enabled_ = false;
       this->write_register(nRF24L01::FEATURE,
@@ -601,17 +599,12 @@ namespace esphome
       this->write_register(nRF24L01::DYNPD, 0);
     }
 
-    bool NRF24Component::isPVariant()
-    {
-      return this->_is_p_variant;
-    }
-
-    void NRF24Component::setAutoAck(bool enable)
+    void NRF24Component::set_auto_ack(bool enable)
     {
       this->write_register(nRF24L01::EN_AA, enable ? 0x3F : 0);
     }
 
-    void NRF24Component::setAutoAck(uint8_t pipe, bool enable)
+    void NRF24Component::set_auto_ack(uint8_t pipe, bool enable)
     {
       uint8_t en_aa = this->read_register(nRF24L01::EN_AA);
       if (enable)
@@ -621,7 +614,7 @@ namespace esphome
       this->write_register(nRF24L01::EN_AA, en_aa);
     }
 
-    void NRF24Component::writeAckPayload(uint8_t pipe, const void *buf, uint8_t len)
+    void NRF24Component::write_ack_payload(uint8_t pipe, const void *buf, uint8_t len)
     {
       begin_transaction_();
       this->transfer_byte(nRF24L01::W_ACK_PAYLOAD | (pipe & 0x07));
@@ -629,21 +622,21 @@ namespace esphome
       end_transaction_();
     }
 
-    bool NRF24Component::isAckPayloadAvailable()
+    bool NRF24Component::is_ack_payload_available()
     {
       return this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::TX_EMPTY ? false : true;
     }
 
     // ====================== Power ======================
 
-    void NRF24Component::powerDown()
+    void NRF24Component::power_down()
     {
       this->ce(false);
       this->write_register(nRF24L01::CONFIG,
                            this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PWR_UP);
     }
 
-    void NRF24Component::powerUp()
+    void NRF24Component::power_up()
     {
       this->write_register(nRF24L01::CONFIG,
                            this->read_register(nRF24L01::CONFIG) | nRF24L01::PWR_UP);
@@ -651,14 +644,14 @@ namespace esphome
 
     // ====================== Status & Debug ======================
 
-    uint8_t NRF24Component::whatHappened()
+    uint8_t NRF24Component::what_happened()
     {
       uint8_t status = this->read_register(nRF24L01::STATUS);
       this->write_register(nRF24L01::STATUS, status & 0x70);
       return status & 0x70;
     }
 
-    void NRF24Component::maskIRQ(bool tx_ok, bool tx_fail, bool rx_ready)
+    void NRF24Component::mask_irq(bool tx_ok, bool tx_fail, bool rx_ready)
     {
       uint8_t config = this->read_register(nRF24L01::CONFIG);
       config |= (tx_fail ? 0 : nRF24L01::MASK_TX_DS) |
@@ -667,7 +660,7 @@ namespace esphome
       this->write_register(nRF24L01::CONFIG, config);
     }
 
-    rf24_fifo_state_e NRF24Component::isFifo(bool tx)
+    rf24_fifo_state_e NRF24Component::is_fifo(bool tx)
     {
       uint8_t status = this->read_register(nRF24L01::FIFO_STATUS);
       // simplified
@@ -695,17 +688,17 @@ namespace esphome
       end_transaction_();
     }
 
-    bool NRF24Component::testCarrier()
+    bool NRF24Component::test_carrier()
     {
       return this->read_register(nRF24L01::RPD) & 1;
     }
 
-    bool NRF24Component::testRPD()
+    bool NRF24Component::test_rpd()
     {
       return this->read_register(nRF24L01::RPD) & 1;
     }
 
-    bool NRF24Component::txStandBy()
+    bool NRF24Component::tx_standby()
     {
       while (this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::FIFO_FULL)
       {
@@ -719,7 +712,7 @@ namespace esphome
       return true;
     }
 
-    bool NRF24Component::txStandBy(uint32_t timeout, bool startTx)
+    bool NRF24Component::tx_standby(uint32_t timeout, bool startTx)
     {
       if (startTx)
         this->ce(true);
@@ -741,14 +734,14 @@ namespace esphome
       end_transaction_();
     }
 
-    void NRF24Component::printPrettyDetails()
+    void NRF24Component::print_pretty_details()
     {
-      ESP_LOGI(TAG, "nRF24L01+ Details:");
-      ESP_LOGI(TAG, "  STATUS          = 0x%02X", this->read_register(nRF24L01::STATUS));
-      ESP_LOGI(TAG, "  CONFIG          = 0x%02X", this->read_register(nRF24L01::CONFIG));
-      ESP_LOGI(TAG, "  RF_SETUP        = 0x%02X", this->read_register(nRF24L01::RF_SETUP));
-      ESP_LOGI(TAG, "  RF_CH           = %d", this->getChannel());
-      ESP_LOGI(TAG, "  Data Rate       = %s", this->getDataRate() == RF24_250KBPS ? "250kbps" : this->getDataRate() == RF24_2MBPS ? "2Mbps"
+      ESP_LOGCONFIG(TAG, "nRF24L01+ Details:");
+      ESP_LOGCONFIG(TAG, "  STATUS          = 0x%02X", this->read_register(nRF24L01::STATUS));
+      ESP_LOGCONFIG(TAG, "  CONFIG          = 0x%02X", this->read_register(nRF24L01::CONFIG));
+      ESP_LOGCONFIG(TAG, "  RF_SETUP        = 0x%02X", this->read_register(nRF24L01::RF_SETUP));
+      ESP_LOGCONFIG(TAG, "  RF_CH           = %d", this->get_channel());
+      ESP_LOGCONFIG(TAG, "  Data Rate       = %s", this->get_rf_data_rate() == RF24_250KBPS ? "250kbps" : this->get_rf_data_rate() == RF24_2MBPS ? "2Mbps"
                                                                                                                                   : "1Mbps");
       // Add more registers if desired
     }

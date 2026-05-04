@@ -34,8 +34,7 @@ spi:
 # ====================== EXTERNAL COMPONENTS ======================
 external_components:
   - source: 
-      type: git
-      url: https://github.com/loucks1/nrf24_espidf
+      type: local
       path: components
     components: [ nrf24 ]
 
@@ -48,7 +47,7 @@ nrf24:
   channel: 53
   rf_data_rate: "1MBPS"      # options: 250KBPS, 1MBPS, 2MBPS
   pa_level: "MAX"         # MIN, LOW, HIGH, MAX
-  data_rate: 1MHz   # this is the SPI data rate, not the RF data rate. The nRF24L01+ supports up to 10MHz on SPI, but you may need to adjust this based on your wiring and stability.
+  data_rate: 1MHz
 
 button:
   - platform: restart
