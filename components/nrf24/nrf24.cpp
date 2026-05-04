@@ -640,6 +640,7 @@ namespace esphome
     {
       this->write_register(nRF24L01::CONFIG,
                            this->read_register(nRF24L01::CONFIG) | nRF24L01::PWR_UP);
+      delay(5); 
     }
 
     // ====================== Status & Debug ======================
