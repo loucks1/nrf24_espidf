@@ -34,7 +34,6 @@ CONFIG_SCHEMA = spi.spi_device_schema(cs_pin_required=True).extend(
         cv.GenerateID(): cv.declare_id(NRF24Component),
         cv.Required(CONF_CE_PIN): pins.gpio_output_pin_schema,
         cv.Optional(CONF_CHANNEL, default=76): cv.int_range(0, 125),
-        # We use rf_datarate here to distinguish from SPI data_rate
         cv.Optional(CONF_RF_DATA_RATE, default="1MBPS"): cv.enum(RF_DATARATES, upper=True),
         cv.Optional(CONF_PA_LEVEL, default="MAX"): cv.enum(PA_LEVELS, upper=True),    
     }

@@ -164,10 +164,10 @@ namespace esphome
       begin_transaction_();
       // 1. Send Read Command (0x00 | reg).
       // The byte returned DURING this call is the STATUS register.
-      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & 0x1F));
+      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & nrf24L01::REGISTER_MASK));
 
       // 2. Send dummy byte to clock out the register value.
-      result = this->transfer_byte(0xFF);
+      result = this->transfer_byte(nRF24L01::NOP);
       end_transaction_();
 
       return result;
@@ -177,7 +177,7 @@ namespace esphome
     {
       begin_transaction_();
       // Send Read Command. Store status.
-      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & 0x1F));
+      this->status_ = this->transfer_byte(nRF24L01::R_REGISTER | (reg & nrf24L01::REGISTER_MASK));
 
       // ESPHome's read_array is more efficient than a for-loop for multiple bytes
       this->read_array(buf, len);
@@ -188,7 +188,7 @@ namespace esphome
     {
       begin_transaction_();
 
-      this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
+      this->transfer_byte(nRF24L01::W_REGISTER | (reg & nrf24L01::REGISTER_MASK));
       this->transfer_byte(value);
 
       end_transaction_();
@@ -198,7 +198,7 @@ namespace esphome
     {
       begin_transaction_();
       // Send Write Command. Store status.
-      this->status_ = this->transfer_byte(nRF24L01::W_REGISTER | (reg & 0x1F));
+      this->status_ = this->transfer_byte(nRF24L01::W_REGISTER | (reg & nrf24L01::REGISTER_MASK));
 
       // Use ESPHome's optimized array write
       this->write_array(buf, len);
