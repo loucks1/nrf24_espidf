@@ -557,6 +557,17 @@ namespace esphome
       return this->read_register(nRF24L01::RF_CH);
     }
 
+    void NRF24Component::set_payload_size(uint8_t size)
+    {
+      if (size > 32)
+        size = 32;
+      this->payload_size_ = size;
+      for (uint8_t i = 0; i < 6; i++)
+      {
+        this->write_register(nRF24L01::RX_PW_P0 + i, size);
+      }
+    }
+
     uint8_t NRF24Component::get_payload_size()
     {
       return this->payload_size_;

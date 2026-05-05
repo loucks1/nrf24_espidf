@@ -79,6 +79,7 @@ namespace esphome
       rf24_datarate_e get_rf_data_rate();
       rf24_crclength_e get_crc_length();
 
+      void set_payload_size(uint8_t size);
       uint8_t get_payload_size();
       uint8_t get_dynamic_payload_size();
 
