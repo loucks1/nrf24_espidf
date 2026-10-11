@@ -28,6 +28,7 @@ CONF_CE_PIN = "ce_pin"
 CONF_CHANNEL = "channel"
 CONF_RF_DATA_RATE = "rf_data_rate"
 CONF_PA_LEVEL = "pa_level"
+CONF_HIGH_FREQUENCY_POLLING = "high_frequency_polling"
 
 CONFIG_SCHEMA = spi.spi_device_schema(cs_pin_required=True).extend(
     {
@@ -36,6 +37,7 @@ CONFIG_SCHEMA = spi.spi_device_schema(cs_pin_required=True).extend(
         cv.Optional(CONF_CHANNEL, default=76): cv.int_range(0, 125),
         cv.Optional(CONF_RF_DATA_RATE, default="1MBPS"): cv.enum(RF_DATARATES, upper=True),
         cv.Optional(CONF_PA_LEVEL, default="MAX"): cv.enum(PA_LEVELS, upper=True),    
+        cv.Optional(CONF_HIGH_FREQUENCY_POLLING, default=False): cv.boolean,
     }
 ).extend(cv.COMPONENT_SCHEMA)
 
@@ -51,3 +53,4 @@ async def to_code(config):
     cg.add(var.set_channel_(config[CONF_CHANNEL]))
     cg.add(var.set_rf_data_rate_(config[CONF_RF_DATA_RATE]))
     cg.add(var.set_pa_level_(config[CONF_PA_LEVEL]))
+    cg.add(var.set_high_frequency_polling(config[CONF_HIGH_FREQUENCY_POLLING]))

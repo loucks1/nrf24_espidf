@@ -42,3 +42,40 @@ nrf24:
   channel: 76             # Optional: 0-125
   rf_data_rate: 1MBPS    # Optional: 250KBPS, 1MBPS, 2MBPS
   pa_level: MAX          # Optional: MIN, LOW, HIGH, MAX
+  high_frequency_polling: false
+```
+
+## Receive polling and transmission
+
+The component reads up to three queued packets per loop. Set
+`high_frequency_polling: true` to request ESPHome's high-frequency loop mode while
+the radio is initialized, listening, and has data callbacks. This option defaults
+to `false`; enabling it increases CPU activity and power consumption. The request
+is released on the next component loop when callback-based reception is inactive,
+including after `power_down()`, or the option is disabled. Batches are bounded by
+the hardware FIFO depth so continuous traffic cannot monopolize a loop iteration.
+
+`write()` waits for the TX-complete or maximum-retry interrupt, with a 95 ms
+timeout. Failure lowers CE and flushes the unsent TX payload without discarding
+queued RX packets. Multicast writes enable `EN_DYN_ACK` before using the NO_ACK
+payload command. Successful NO_ACK transmission does not confirm reception by
+the destination.
+
+Both `tx_standby()` overloads wait for the TX FIFO to become empty, not merely
+for one packet's TX-complete interrupt. The no-argument overload uses a 95 ms
+timeout; the other uses the supplied timeout in milliseconds. With `startTx:
+true`, it switches out of RX mode and starts the queued transmission. Both
+overloads lower CE and clear TX interrupts before returning. On maximum retries
+or timeout, they return `false` and flush unsent TX data, preserving queued RX
+data. Neither overload retries a payload after `MAX_RT`. `write_blocking()`
+deducts the time spent loading the payload from its remaining wait budget.
+
+`mask_irq(tx_ok, tx_fail, rx_ready)` uses `true` to mask the corresponding IRQ
+and `false` to unmask it, preserving the other CONFIG bits. `is_fifo(tx)` selects
+TX with `true` or RX with `false` and reports empty, occupied, full, or invalid.
+`is_ack_payload_available()` checks for a payload in the RX FIFO.
+
+Existing configurations remain valid. Starting a transmission sets the driver's
+`is_listening_` state to `false`, so receive callbacks are inactive until
+`start_listening()` is called again. Applications must explicitly return the
+half-duplex radio to listening mode between transmissions when they need RX.

@@ -3,6 +3,7 @@
 #include "esphome/core/component.h"
 #include "esphome/components/spi/spi.h"
 #include "esphome/core/gpio.h"
+#include "esphome/core/helpers.h"
 
 #include "nRF24L01.h"
 
@@ -26,6 +27,7 @@ namespace esphome
 
     public:
       void set_ce_pin(GPIOPin *pin) { this->ce_pin_ = pin; }
+      void set_high_frequency_polling(bool enabled) { this->high_frequency_polling_ = enabled; }
 
       // ==================== Core setup ====================
       void setup() override;
@@ -145,6 +147,8 @@ namespace esphome
       void write_payload(const void *buf, uint8_t data_len, uint8_t writeType);
 
       uint32_t last_watchdog_check_{0};
+      HighFrequencyLoopRequester high_frequency_loop_;
+      bool high_frequency_polling_{false};
       bool hardware_initialized_{false};
       bool soft_reset();
       bool is_listening_{false};
@@ -156,7 +160,6 @@ namespace esphome
       bool dynamic_payloads_enabled_{false};
       uint8_t addr_width_{5};
       uint8_t status_{0};
-      uint8_t config_reg_{0};
       bool ack_payloads_enabled_{false};
       uint8_t pipe0_writing_address_[5]{};
 

@@ -43,7 +43,7 @@ namespace esphome
         return false;
       }
 
-      this->write_register(nRF24L01::STATUS, nRF24L01::RX_DR | nRF24L01::TX_DS | nRF24L01::MAX_RT);
+      this->write_register(nRF24L01::STATUS, RF24_IRQ_ALL);
 
       this->flush_rx();
       this->flush_tx();
@@ -74,7 +74,17 @@ namespace esphome
         this->hardware_initialized_ = this->is_chip_connected();
       }
 
-      if (this->hardware_initialized_ && this->is_listening_ && !this->on_data_callbacks_.empty() && this->available())
+      if (!this->hardware_initialized_ || !this->is_listening_ || this->on_data_callbacks_.empty())
+      {
+        this->high_frequency_loop_.stop();
+        return;
+      }
+      if (this->high_frequency_polling_)
+        this->high_frequency_loop_.start();
+      else
+        this->high_frequency_loop_.stop();
+
+      for (uint8_t packets = 0; packets < 3 && this->is_listening_ && this->available(); ++packets)
       {
         uint8_t len = this->get_payload_size();
         if (dynamic_payloads_enabled_)
@@ -85,7 +95,7 @@ namespace esphome
         if (len == 0 || len > 32)
         {
           this->flush_rx();
-          this->write_register(nRF24L01::STATUS, nRF24L01::RX_DR); // Clear interrupt
+          this->write_register(nRF24L01::STATUS, RF24_RX_DR);
           return;
         }
 
@@ -224,8 +234,8 @@ namespace esphome
 
     void NRF24Component::start_listening()
     {
-      config_reg_ |= BIT(nRF24L01::PWR_UP) | BIT(nRF24L01::PRIM_RX);
-      write_register(nRF24L01::CONFIG, config_reg_);
+      this->write_register(nRF24L01::CONFIG,
+                           this->read_register(nRF24L01::CONFIG) | BIT(nRF24L01::PWR_UP) | BIT(nRF24L01::PRIM_RX));
       write_register(nRF24L01::STATUS, RF24_IRQ_ALL);
       this->ce(true);
       this->is_listening_ = true;
@@ -309,17 +319,19 @@ namespace esphome
     bool NRF24Component::write(const void *buf, uint8_t len, bool multicast)
     {
       this->start_write(buf, len, multicast);
-      uint32_t timeout = millis() + 95;
-      while (!(this->read_register(nRF24L01::STATUS) & (nRF24L01::TX_DS | nRF24L01::MAX_RT)))
+      const uint32_t started = millis();
+      uint8_t status;
+      while (!((status = this->read_register(nRF24L01::STATUS)) & (RF24_TX_DS | RF24_TX_DF)))
       {
-        if (millis() > timeout)
-          return false;
+        if (millis() - started >= 95)
+          break;
         yield();
       }
       this->ce(false);
-      uint8_t status = this->read_register(nRF24L01::STATUS);
-      this->write_register(nRF24L01::STATUS, nRF24L01::TX_DS | nRF24L01::MAX_RT);
-      return status & nRF24L01::TX_DS;
+      this->write_register(nRF24L01::STATUS, RF24_TX_DS | RF24_TX_DF);
+      if (!(status & RF24_TX_DS))
+        this->flush_tx();
+      return status & RF24_TX_DS;
     }
 
     void NRF24Component::start_write(const void *buf, uint8_t len, bool multicast)
@@ -329,7 +341,22 @@ namespace esphome
       uint8_t command = multicast ? nRF24L01::W_TX_PAYLOAD_NO_ACK : nRF24L01::W_TX_PAYLOAD;
 
       this->ce(false); // Ensure we aren't in RX mode
-      this->write_register(nRF24L01::CONFIG, (this->read_register(nRF24L01::CONFIG) & ~nRF24L01::PRIM_RX));
+      this->is_listening_ = false;
+      this->write_register(nRF24L01::CONFIG, this->read_register(nRF24L01::CONFIG) & ~BIT(nRF24L01::PRIM_RX));
+      this->write_register(nRF24L01::STATUS, RF24_TX_DS | RF24_TX_DF);
+      if (multicast)
+      {
+        uint8_t feature = this->read_register(nRF24L01::FEATURE);
+        if (!(feature & BIT(nRF24L01::EN_DYN_ACK)))
+        {
+          this->write_register(nRF24L01::FEATURE, feature | BIT(nRF24L01::EN_DYN_ACK));
+          if (!(this->read_register(nRF24L01::FEATURE) & BIT(nRF24L01::EN_DYN_ACK)))
+          {
+            this->toggle_features();
+            this->write_register(nRF24L01::FEATURE, feature | BIT(nRF24L01::EN_DYN_ACK));
+          }
+        }
+      }
 
       begin_transaction_();
       // 1. Send the RAW command byte, NOT masked with W_REGISTER
@@ -371,13 +398,10 @@ namespace esphome
 
     bool NRF24Component::write_blocking(const void *buf, uint8_t len, uint32_t timeout)
     {
-      uint32_t start = millis();
-      while (!this->write_fast(buf, len))
-      {
-        if (millis() - start > timeout)
-          return false;
-      }
-      return this->tx_standby(timeout - (millis() - start));
+      const uint32_t start = millis();
+      this->start_write(buf, len, false);
+      const uint32_t elapsed = millis() - start;
+      return this->tx_standby(elapsed < timeout ? timeout - elapsed : 0);
     }
 
     // ====================== Pipes ======================
@@ -584,21 +608,21 @@ namespace esphome
     {
       this->ack_payloads_enabled_ = true;
       this->write_register(nRF24L01::FEATURE,
-                           this->read_register(nRF24L01::FEATURE) | nRF24L01::EN_ACK_PAY);
+                           this->read_register(nRF24L01::FEATURE) | BIT(nRF24L01::EN_ACK_PAY));
     }
 
     void NRF24Component::disable_ack_payload()
     {
       this->ack_payloads_enabled_ = false;
       this->write_register(nRF24L01::FEATURE,
-                           this->read_register(nRF24L01::FEATURE) & ~nRF24L01::EN_ACK_PAY);
+                           this->read_register(nRF24L01::FEATURE) & ~BIT(nRF24L01::EN_ACK_PAY));
     }
 
     void NRF24Component::enable_dynamic_payloads()
     {
       this->dynamic_payloads_enabled_ = true;
       this->write_register(nRF24L01::FEATURE,
-                           this->read_register(nRF24L01::FEATURE) | nRF24L01::EN_DPL);
+                           this->read_register(nRF24L01::FEATURE) | BIT(nRF24L01::EN_DPL));
       this->write_register(nRF24L01::DYNPD, 0x3F);
     }
 
@@ -606,7 +630,7 @@ namespace esphome
     {
       this->dynamic_payloads_enabled_ = false;
       this->write_register(nRF24L01::FEATURE,
-                           this->read_register(nRF24L01::FEATURE) & ~nRF24L01::EN_DPL);
+                           this->read_register(nRF24L01::FEATURE) & ~BIT(nRF24L01::EN_DPL));
       this->write_register(nRF24L01::DYNPD, 0);
     }
 
@@ -635,7 +659,7 @@ namespace esphome
 
     bool NRF24Component::is_ack_payload_available()
     {
-      return this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::TX_EMPTY ? false : true;
+      return !(this->read_register(nRF24L01::FIFO_STATUS) & BIT(nRF24L01::RX_EMPTY));
     }
 
     // ====================== Power ======================
@@ -643,6 +667,7 @@ namespace esphome
     void NRF24Component::power_down()
     {
       this->ce(false);
+      this->is_listening_ = false;
       this->write_register(nRF24L01::CONFIG,
                            this->read_register(nRF24L01::CONFIG) & ~BIT(nRF24L01::PWR_UP));
     }
@@ -666,17 +691,17 @@ namespace esphome
     void NRF24Component::mask_irq(bool tx_ok, bool tx_fail, bool rx_ready)
     {
       uint8_t config = this->read_register(nRF24L01::CONFIG);
-      config |= (tx_fail ? 0 : nRF24L01::MASK_TX_DS) |
-                (tx_ok ? 0 : nRF24L01::MASK_MAX_RT) |
-                (rx_ready ? 0 : nRF24L01::MASK_RX_DR);
+      config &= ~(BIT(nRF24L01::MASK_TX_DS) | BIT(nRF24L01::MASK_MAX_RT) | BIT(nRF24L01::MASK_RX_DR));
+      config |= (tx_ok ? BIT(nRF24L01::MASK_TX_DS) : 0) |
+                (tx_fail ? BIT(nRF24L01::MASK_MAX_RT) : 0) |
+                (rx_ready ? BIT(nRF24L01::MASK_RX_DR) : 0);
       this->write_register(nRF24L01::CONFIG, config);
     }
 
     rf24_fifo_state_e NRF24Component::is_fifo(bool tx)
     {
       uint8_t status = this->read_register(nRF24L01::FIFO_STATUS);
-      // simplified
-      return (status & 0x01) ? RF24_FIFO_EMPTY : RF24_FIFO_FULL;
+      return static_cast<rf24_fifo_state_e>((status >> (tx ? 4 : 0)) & 0x03);
     }
 
     void NRF24Component::flush_tx()
@@ -712,30 +737,36 @@ namespace esphome
 
     bool NRF24Component::tx_standby()
     {
-      while (this->read_register(nRF24L01::FIFO_STATUS) & nRF24L01::FIFO_FULL)
-      {
-        if (this->read_register(nRF24L01::STATUS) & nRF24L01::MAX_RT)
-        {
-          this->write_register(nRF24L01::STATUS, nRF24L01::MAX_RT);
-          this->ce(false);
-          return false;
-        }
-      }
-      return true;
+      return this->tx_standby(95);
     }
 
     bool NRF24Component::tx_standby(uint32_t timeout, bool startTx)
     {
+      const uint32_t start = millis();
       if (startTx)
-        this->ce(true);
-      uint32_t start = millis();
-      while (millis() - start < timeout)
       {
-        if (this->read_register(nRF24L01::STATUS) & (nRF24L01::TX_DS | nRF24L01::MAX_RT))
+        this->ce(false);
+        this->is_listening_ = false;
+        this->write_register(nRF24L01::CONFIG,
+                             this->read_register(nRF24L01::CONFIG) & ~BIT(nRF24L01::PRIM_RX));
+        this->ce(true);
+      }
+      bool success = true;
+      while (!(this->read_register(nRF24L01::FIFO_STATUS) & BIT(nRF24L01::TX_EMPTY)))
+      {
+        if ((this->read_register(nRF24L01::STATUS) & RF24_TX_DF) || millis() - start >= timeout)
+        {
+          success = false;
           break;
+        }
+        yield();
       }
       this->ce(false);
-      return (this->read_register(nRF24L01::STATUS) & nRF24L01::TX_DS);
+      this->is_listening_ = false;
+      this->write_register(nRF24L01::STATUS, RF24_TX_DS | RF24_TX_DF);
+      if (!success)
+        this->flush_tx();
+      return success;
     }
 
     void NRF24Component::toggle_features()
