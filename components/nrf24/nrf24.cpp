@@ -12,6 +12,48 @@ namespace esphome
 
     static const char *const TAG = "nrf24";
 
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
+    // nRF24L01 frames are at most 32 bytes. read() still logs the length the
+    // caller passes, which is a uint8_t, so the plain hex buffer covers that.
+    static constexpr size_t HEX_LOG_MAX_BYTES = 255;
+    static constexpr size_t FRAME_LOG_MAX_BYTES = 32;
+    // format_hex_pretty() defaults: uppercase, '.' between bytes, and " (N)"
+    // when N > 4. The longest suffix for a uint8_t length is " (255)".
+    static constexpr size_t PRETTY_HEX_SUFFIX_MAX = sizeof(" (255)") - 1;
+
+    // Stack stand-in for format_hex_pretty(data, length). format_hex_pretty_to()
+    // uses ':' and does not append the length, so both are applied here.
+    static char *format_hex_pretty_dotted(char *buffer, size_t buffer_size, const uint8_t *data, size_t length)
+    {
+      format_hex_pretty_to(buffer, buffer_size, data, length, '.');
+      if (length <= 4 || buffer_size < length * 3)
+        return buffer;
+
+      const size_t hex_len = length * 3 - 1;
+      char suffix[8];
+      size_t suffix_len = 0;
+      suffix[suffix_len++] = ' ';
+      suffix[suffix_len++] = '(';
+      char digits[4];
+      size_t digit_count = 0;
+      size_t value = length;
+      do
+      {
+        digits[digit_count++] = static_cast<char>('0' + (value % 10));
+        value /= 10;
+      } while (value != 0 && digit_count < sizeof(digits));
+      while (digit_count > 0)
+        suffix[suffix_len++] = digits[--digit_count];
+      suffix[suffix_len++] = ')';
+
+      if (hex_len + suffix_len >= buffer_size)
+        return buffer;
+      memcpy(buffer + hex_len, suffix, suffix_len);
+      buffer[hex_len + suffix_len] = '\0';
+      return buffer;
+    }
+#endif
+
     void NRF24Component::setup()
     {
       if (this->ce_pin_)
@@ -102,7 +144,11 @@ namespace esphome
         uint8_t buffer[32];
         this->read(buffer, len);
 
-        ESP_LOGV(TAG, "Received packet: %d  %s", len, format_hex_pretty(buffer, len).c_str());
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
+        char packet_hex[format_hex_pretty_size(FRAME_LOG_MAX_BYTES) + PRETTY_HEX_SUFFIX_MAX];
+        ESP_LOGV(TAG, "Received packet: %d  %s", len,
+                 format_hex_pretty_dotted(packet_hex, sizeof(packet_hex), buffer, len));
+#endif
 
         // Pass the pointer and the length to subscribers
         for (auto &callback : this->on_data_callbacks_)
@@ -151,9 +197,12 @@ namespace esphome
 
         yield();
 
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
         uint8_t addr[5] = {0};
         this->read_register(nRF24L01::RX_ADDR_P1, addr, this->addr_width_);
-        ESP_LOGCONFIG(TAG, "    RX_ADDR_P1: %s", format_hex(addr, this->addr_width_).c_str());
+        char addr_hex[format_hex_size(sizeof(addr))];
+        ESP_LOGCONFIG(TAG, "    RX_ADDR_P1: %s", format_hex_to(addr_hex, addr, this->addr_width_));
+#endif
       }
     }
     // ====================== SPI Helpers ======================
@@ -303,7 +352,11 @@ namespace esphome
       uint8_t fifo_status = this->read_register(nRF24L01::FIFO_STATUS);
       bool more_data = !(fifo_status & BIT(nRF24L01::RX_EMPTY));
 
-      ESP_LOGV(TAG, "Read %d bytes: %s", len, format_hex((const uint8_t *)buf, len).c_str());
+#if ESPHOME_LOG_LEVEL >= ESPHOME_LOG_LEVEL_VERBOSE
+      char payload_hex[format_hex_size(HEX_LOG_MAX_BYTES)];
+      ESP_LOGV(TAG, "Read %d bytes: %s", len,
+               format_hex_to(payload_hex, static_cast<const uint8_t *>(buf), len));
+#endif
 
       if (more_data)
       {
