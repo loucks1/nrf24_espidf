@@ -93,6 +93,31 @@ namespace esphome
       set_channel(this->channel_);
       set_rf_data_rate(this->rf_data_rate_);
       set_pa_level(this->pa_level_, true);
+
+      // Establish the full configuration this component depends on rather
+      // than assuming power-on-reset state. The radio is NOT power-cycled
+      // by an ESP reboot or reflash - its registers persist - so state left
+      // by a previous firmware or role otherwise leaks into this boot.
+      // (Observed 2026-11-23: a TX node flashed over a receiver firmware
+      // never heard ACKs until the radio was physically power-cycled.)
+      // CONFIG is written outright: IRQ masks cleared, PRIM_RX cleared
+      // (start_listening() sets it when receiving is wanted), CRC taken
+      // from the crc_length_ member.
+      uint8_t config = BIT(nRF24L01::PWR_UP);
+      if (this->crc_length_ == nRF24L01::RF24_CRC_8)
+        config |= BIT(nRF24L01::EN_CRC);
+      else if (this->crc_length_ == nRF24L01::RF24_CRC_16)
+        config |= BIT(nRF24L01::EN_CRC) | BIT(nRF24L01::CRCO);
+      this->write_register(nRF24L01::CONFIG, config);
+      set_address_width(this->addr_width_);
+      set_payload_size(this->payload_size_);
+      set_auto_ack(this->auto_ack_);
+      set_retries(this->retry_delay_, this->retry_count_);
+      if (this->dynamic_payloads_enabled_)
+        this->enable_dynamic_payloads();
+      else
+        this->disable_dynamic_payloads();
+
       ESP_LOGI(TAG, "nRF24L01+ initialized successfully.");
       this->hardware_initialized_ = true;
       return true;
@@ -596,6 +621,7 @@ namespace esphome
 
     void NRF24Component::set_crc_length(rf24_crclength_e length)
     {
+      this->crc_length_ = length;
       uint8_t config = this->read_register(nRF24L01::CONFIG) & ~(0x0C);
       if (length == RF24_CRC_8)
         config |= 0x08;
@@ -621,6 +647,8 @@ namespace esphome
 
     void NRF24Component::set_retries(uint8_t delay, uint8_t count)
     {
+      this->retry_delay_ = delay & 0x0F;
+      this->retry_count_ = count & 0x0F;
       this->write_register(nRF24L01::SETUP_RETR, (delay & 0x0F) << 4 | (count & 0x0F));
     }
 
@@ -689,6 +717,7 @@ namespace esphome
 
     void NRF24Component::set_auto_ack(bool enable)
     {
+      this->auto_ack_ = enable;
       this->write_register(nRF24L01::EN_AA, enable ? 0x3F : 0);
     }
 
