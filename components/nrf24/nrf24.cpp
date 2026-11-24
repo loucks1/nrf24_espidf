@@ -464,6 +464,13 @@ namespace esphome
       memcpy(this->pipe0_writing_address_, address, 5);
       this->write_register(nRF24L01::TX_ADDR, address, 5);
       this->write_register(nRF24L01::RX_ADDR_P0, address, 5);
+      // ACKs are received on pipe 0, so it must be enabled here.
+      // stop_listening() closes ALL pipes and nothing else re-enables
+      // pipe 0 - without this, a node that listened before transmitting
+      // never hears its ACKs and every write() fails at MAX_RT even
+      // though the peer received the packet.
+      uint8_t en_reg = this->read_register(nRF24L01::EN_RXADDR);
+      this->write_register(nRF24L01::EN_RXADDR, en_reg | BIT(nRF24L01::ERX_P0));
     }
 
     void NRF24Component::open_writing_pipe(uint64_t address)
