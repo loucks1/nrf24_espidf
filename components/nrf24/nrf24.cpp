@@ -501,7 +501,10 @@ namespace esphome
     void NRF24Component::open_writing_pipe(uint64_t address)
     {
       uint8_t addr[5] = {0};
-      for (int i = 4; i >= 0; --i)
+      // RF24 writes the address LSB-first (little-endian byte order);
+      // match it so the uint64_t overload produces the same register
+      // bytes as RF24 and as this component's byte-array overload.
+      for (int i = 0; i < 5; ++i)
       {
         addr[i] = address & 0xFF;
         address >>= 8;
@@ -556,7 +559,10 @@ namespace esphome
     void NRF24Component::open_reading_pipe(uint8_t number, uint64_t address)
     {
       uint8_t addr[5] = {0};
-      for (int i = 4; i >= 0; --i)
+      // LSB-first, matching RF24 - see open_writing_pipe(uint64_t).
+      // For pipes 2-5 the byte-array overload stores addr[0], which is
+      // now the LSB, the same byte RF24 stores for those pipes.
+      for (int i = 0; i < 5; ++i)
       {
         addr[i] = address & 0xFF;
         address >>= 8;
