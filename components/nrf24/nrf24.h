@@ -166,6 +166,9 @@ namespace esphome
       nRF24L01::rf24_pa_dbm_e pa_level_{nRF24L01::RF24_PA_MAX};
       nRF24L01::rf24_datarate_e rf_data_rate_{nRF24L01::RF24_1MBPS};
       nRF24L01::rf24_crclength_e crc_length_{nRF24L01::RF24_CRC_16};
+      bool auto_ack_{true};
+      uint8_t retry_delay_{0};
+      uint8_t retry_count_{3};
 
     private:
     };
