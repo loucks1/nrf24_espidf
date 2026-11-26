@@ -9,6 +9,39 @@ This component provides a bridge between **ESPHome** and the **nRF24L01+** 2.4GH
 * **Payload Management:** Support for dynamic payloads and ACK payloads.
 * **Callback System:** Easily hook into incoming data events via `add_on_data_callback`.
 
+## Interoperability with Arduino (TMRh20 RF24)
+
+This component has been tested on hardware against the [TMRh20 RF24 library](https://github.com/nRF24/RF24) running on Arduino, in both directions:
+
+- **RF24 (Arduino) transmitting → this component (ESPHome) receiving**
+- **This component (ESPHome) transmitting → RF24 (Arduino) receiving**
+
+An Arduino↔Arduino run with the same settings served as a control. All runs used one shared configuration, so the two libraries were compared on identical terms:
+
+| Setting | Value |
+| :--- | :--- |
+| Channel | 76 (2476 MHz) |
+| Data rate | 1 Mbps |
+| PA level | LOW |
+| CRC | 16-bit |
+| Address | 5 bytes, `E1 F0 F0 F0 F0` |
+| Payload | Fixed 32 bytes, dynamic payloads off |
+| Auto-ack | On, retries (5, 15) |
+
+Payload format for the test and the examples: a little-endian `uint32` sequence number followed by the text `HELLO_NRF24`, zero-padded to 32 bytes.
+
+Results (2026-11-23, ESP32 nodes ~5 ft apart):
+
+- Control, RF24 ↔ RF24: **187 consecutive packets, zero loss**
+- RF24 TX → ESPHome RX: **131 consecutive packets with no sequence gaps** (the only losses in the run were one brief cluster matching TX-side failures, consistent with interference — channel 76 overlaps the Wi-Fi band)
+- ESPHome TX → RF24 RX: **184+ consecutive packets, every transmission acknowledged, zero failures**
+
+Both directions were re-run successfully on 2026-11-26 against the current `main`, with the same two nodes reflashed into the opposite roles between runs — the ESPHome node transmitted in one run and received in the other, and the Arduino node did the reverse. Paired, ready-to-flash examples for both platforms are in [`examples/`](examples/).
+
+Scope of this testing: fixed 32-byte payloads with dynamic payloads off, and single-role nodes (a node is a dedicated transmitter or receiver for the whole boot; the role changes above were done by reflashing between runs). Other data rates, dynamic payloads, and listen-then-transmit role swapping within one boot have not been hardware-tested for interop. The examples use the byte-array address form so the on-air byte order is visible in the code; the `uint64_t` address form produces identical register bytes.
+
+---
+
 ---
 
 ## Hardware Setup
